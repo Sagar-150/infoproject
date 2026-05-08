@@ -723,6 +723,8 @@ function moveTip(evt){
 function hideTip(){tip.style.display="none";}
 document.addEventListener("mousemove",function(e){if(tip.style.display!=="none")moveTip(e);});
 
+var mainCurPos = null; // tracks active layout positions for sim access
+
 // ================================================================
 // MAIN INTERACTIVE NETWORK (Graph 1)
 // ================================================================
@@ -789,6 +791,47 @@ document.addEventListener("mousemove",function(e){if(tip.style.display!=="none")
         applyFilter();
       })
       .on("click",function(event,n){
+        // ── Path mode: pick nodes here before stopPropagation kills SVG-level handler
+        if(pathMode){
+          event.stopPropagation();
+          pathNodes.push(n.id);
+          if(pathNodes.length===1){
+            document.getElementById('path-btn').textContent='Pick Node 2...';
+            d3.select(this).attr('stroke','#F59E0B').attr('stroke-width',3.5);
+          } else if(pathNodes.length>=2){
+            var path=bfs(pathNodes[0],pathNodes[1]);
+            d3.select('#main-svg').selectAll('.path-label').remove();
+            if(!path||path.length<2){
+              alert('No path found between nodes '+pathNodes[0]+' and '+pathNodes[1]);
+            } else {
+              var pathSet={};
+              path.forEach(function(id){pathSet[id]=true;});
+              var edgeSet={};
+              for(var pi=0;pi<path.length-1;pi++){
+                edgeSet[Math.min(path[pi],path[pi+1])+'-'+Math.max(path[pi],path[pi+1])]=true;
+              }
+              nodeG.selectAll('circle')
+                .attr('stroke',function(m){return m&&pathSet[m.id]?'#F59E0B':'#171C28';})
+                .attr('stroke-width',function(m){return m&&pathSet[m.id]?3:0.9;})
+                .attr('opacity',function(m){return m&&pathSet[m.id]?1:0.15;});
+              edgeG.selectAll('line')
+                .attr('stroke',function(e){var k=Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);return edgeSet[k]?'#F59E0B':'#475569';})
+                .attr('stroke-opacity',function(e){var k=Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);return edgeSet[k]?1:0.06;})
+                .attr('stroke-width',function(e){var k=Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);return edgeSet[k]?2.5:0.9;});
+              var W2=document.getElementById('main-net-wrap').clientWidth||900,H2=520;
+              d3.select('#main-svg g').append('text').attr('class','path-label')
+                .attr('x',W2/2).attr('y',22)
+                .attr('text-anchor','middle').attr('font-family','DM Mono').attr('font-size',12)
+                .attr('fill','#F59E0B').attr('font-weight','700')
+                .text('Path: '+( path.length-1)+' hops  ('+path.slice(0,6).join(' → ')+(path.length>6?'…':'')+')');
+            }
+            pathNodes=[];
+            pathMode=false;
+            document.getElementById('path-btn').classList.remove('on');
+            document.getElementById('path-btn').textContent='Shortest Path';
+          }
+          return;
+        }
         event.stopPropagation();
         var comm=curPart[n.id]||0;
         var col=curPalette[comm%curPalette.length];
@@ -818,10 +861,12 @@ document.addEventListener("mousemove",function(e){if(tip.style.display!=="none")
   }
 
   buildEdges(); buildNodes();
+  mainCurPos = curPos; // initialise outer ref
 
   // Smooth layout transition
   function transitionTo(newPos){
     curPos=newPos;
+    mainCurPos=newPos; // keep outer ref in sync for simulation
     nodeG.selectAll("circle").transition().duration(700).ease(d3.easeCubicInOut)
       .attr("cx",function(n){return newPos[n.id].x*W;})
       .attr("cy",function(n){return newPos[n.id].y*H;});
@@ -1242,63 +1287,8 @@ document.getElementById('path-btn').addEventListener('click', function() {
   }
 });
 
-// Override click on nodes for path mode — inject into existing circle click
-d3.select('#main-svg').on('click.path', function(event) {
-  if (!pathMode) return;
-  var target = event.target;
-  if (target.tagName !== 'circle' && target.tagName !== 'CIRCLE') return;
-  var nd = d3.select(target).datum();
-  if (!nd) return;
-  event.stopPropagation();
-  pathNodes.push(nd.id);
-  if (pathNodes.length === 1) {
-    document.getElementById('path-btn').textContent = 'Pick Node 2...';
-    d3.select(target).attr('stroke','#F59E0B').attr('stroke-width',3.5);
-  } else if (pathNodes.length >= 2) {
-    var path = bfs(pathNodes[0], pathNodes[1]);
-    d3.select('#main-svg').selectAll('.path-label').remove();
-    if (!path || path.length < 2) {
-      alert('No path found between nodes ' + pathNodes[0] + ' and ' + pathNodes[1]);
-    } else {
-      var pathSet = {};
-      path.forEach(function(id) { pathSet[id] = true; });
-      var edgeSet = {};
-      for (var i = 0; i < path.length - 1; i++) {
-        edgeSet[Math.min(path[i],path[i+1])+'-'+Math.max(path[i],path[i+1])] = true;
-      }
-      // Dim non-path elements
-      d3.select('#main-svg').selectAll('circle')
-        .attr('stroke', function(n) { return n && pathSet[n.id] ? '#F59E0B' : '#171C28'; })
-        .attr('stroke-width', function(n) { return n && pathSet[n.id] ? 3 : 0.9; })
-        .attr('opacity', function(n) { return n && pathSet[n.id] ? 1 : 0.15; });
-      d3.select('#main-svg').selectAll('line')
-        .attr('stroke', function(e) {
-          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
-          return edgeSet[k] ? '#F59E0B' : '#475569';
-        })
-        .attr('stroke-opacity', function(e) {
-          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
-          return edgeSet[k] ? 1 : 0.06;
-        })
-        .attr('stroke-width', function(e) {
-          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
-          return edgeSet[k] ? 2.5 : 0.9;
-        });
-      // Show path length label
-      var pos = POS[document.querySelector('#layout-btns .nbtn.on') ? document.querySelector('#layout-btns .nbtn.on').dataset.layout : 'spring'] || POS.spring;
-      var W2 = document.getElementById('main-net-wrap').clientWidth || 900;
-      var H2 = 520;
-      d3.select('#main-svg').append('text').attr('class','path-label')
-        .attr('x', W2/2).attr('y', 22)
-        .attr('text-anchor','middle').attr('font-family','DM Mono').attr('font-size',12).attr('fill','#F59E0B').attr('font-weight','700')
-        .text('Path length: ' + (path.length-1) + ' hops  (' + path.slice(0,5).join(' -> ') + (path.length>5?'...':'') + ')');
-    }
-    pathNodes = [];
-    pathMode = false;
-    document.getElementById('path-btn').classList.remove('on');
-    document.getElementById('path-btn').textContent = 'Shortest Path';
-  }
-});
+// Path click is now handled directly in the circle .on("click") handler above
+// to avoid being blocked by event.stopPropagation()
 
 // ============================================================
 // LIVE D3 FORCE SIMULATION TOGGLE
@@ -1313,10 +1303,15 @@ document.getElementById('sim-btn').addEventListener('click', function() {
 
   if (simRunning) {
     var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+    var activePOS = mainCurPos || POS.spring; // use currently active layout, not always spring
     // Build node/link objects for d3 force
     var fnodes = NET.nodes.map(function(n) {
-      return { id: n.id, x: POS.spring[n.id].x * W2, y: POS.spring[n.id].y * H2, deg: n.deg, c: n.c, btw: n.btw };
+      return { id: n.id, x: activePOS[n.id].x * W2, y: activePOS[n.id].y * H2, deg: n.deg, c: n.c, btw: n.btw };
     });
+    // Build index map for fast lookup: nodeId -> fnode
+    var fnodeMap = {};
+    fnodes.forEach(function(fn) { fnodeMap[fn.id] = fn; });
+
     var flinks = NET.edges.map(function(e) { return { source: e.s, target: e.t }; });
 
     simulation = d3.forceSimulation(fnodes)
@@ -1326,31 +1321,31 @@ document.getElementById('sim-btn').addEventListener('click', function() {
       .force('collision', d3.forceCollide(7))
       .alphaDecay(0.015)
       .on('tick', function() {
-        var curPart2 = PARTS[document.querySelector('#algo-btns .nbtn.on2') ? document.querySelector('#algo-btns .nbtn.on2').dataset.algo : 'lou'] || PARTS.lou;
-        var palette2 = C15;
-        d3.select('#main-svg').selectAll('line')
-          .attr('x1', function(e) { var n = typeof e.source === 'object' ? e.source : fnodes[e.source]; return n ? n.x : 0; })
-          .attr('y1', function(e) { var n = typeof e.source === 'object' ? e.source : fnodes[e.source]; return n ? n.y : 0; })
-          .attr('x2', function(e) { var n = typeof e.target === 'object' ? e.target : fnodes[e.target]; return n ? n.x : 0; })
-          .attr('y2', function(e) { var n = typeof e.target === 'object' ? e.target : fnodes[e.target]; return n ? n.y : 0; });
-        d3.select('#main-svg').selectAll('circle')
-          .attr('cx', function(n) { var fn = fnodes[n.id]; return fn ? fn.x : 0; })
-          .attr('cy', function(n) { var fn = fnodes[n.id]; return fn ? fn.y : 0; });
+        // Fix: use e.s / e.t (NET.edges keys) to look up fnode positions via fnodeMap
+        var edgeSel = d3.select('#main-svg g').selectAll('line');
+        edgeSel
+          .attr('x1', function(e) { var n = fnodeMap[e.s]; return n ? n.x : 0; })
+          .attr('y1', function(e) { var n = fnodeMap[e.s]; return n ? n.y : 0; })
+          .attr('x2', function(e) { var n = fnodeMap[e.t]; return n ? n.x : 0; })
+          .attr('y2', function(e) { var n = fnodeMap[e.t]; return n ? n.y : 0; });
+        d3.select('#main-svg g').selectAll('circle')
+          .attr('cx', function(n) { var fn = fnodeMap[n.id]; return fn ? fn.x : 0; })
+          .attr('cy', function(n) { var fn = fnodeMap[n.id]; return fn ? fn.y : 0; });
       });
 
     // Make nodes draggable during simulation
-    d3.select('#main-svg').selectAll('circle').call(
+    d3.select('#main-svg g').selectAll('circle').call(
       d3.drag()
         .on('start', function(event, n) {
           if (simulation) { simulation.alphaTarget(0.3).restart(); }
-          var fn = fnodes[n.id]; if (fn) { fn.fx = fn.x; fn.fy = fn.y; }
+          var fn = fnodeMap[n.id]; if (fn) { fn.fx = fn.x; fn.fy = fn.y; }
         })
         .on('drag', function(event, n) {
-          var fn = fnodes[n.id]; if (fn) { fn.fx = event.x; fn.fy = event.y; }
+          var fn = fnodeMap[n.id]; if (fn) { fn.fx = event.x; fn.fy = event.y; }
         })
         .on('end', function(event, n) {
           if (simulation) simulation.alphaTarget(0);
-          var fn = fnodes[n.id]; if (fn) { fn.fx = null; fn.fy = null; }
+          var fn = fnodeMap[n.id]; if (fn) { fn.fx = null; fn.fy = null; }
         })
     );
   } else {
