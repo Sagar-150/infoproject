@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Community Detection - SNAP Facebook - IIT Delhi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;0,800;1,300&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+:root{
+  --bg:#0B0F19;
+  --white:#171C28;
+  --border:#2A3241;
+  --text:#F1F5F9;
+  --muted:#94A3B8;
+  --dim:#64748B;
+  --blue:#3B82F6;
+  --blue-lt:rgba(59, 130, 246, 0.15);
+  --green:#10B981;
+  --green-lt:rgba(16, 185, 129, 0.15);
+  --orange:#F59E0B;
+  --orange-lt:rgba(245, 158, 11, 0.15);
+  --purple:#8B5CF6;
+  --teal:#14B8A6;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6}
+header{background:var(--white);border-bottom:1.5px solid var(--border);position:sticky;top:0;z-index:200;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:52px;overflow-x:auto}
+.logo{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.logo strong{color:var(--text)}
+nav{display:flex;gap:.1rem;flex-shrink:0}
+nav a{font-size:.63rem;font-weight:500;letter-spacing:.04em;color:var(--muted);text-decoration:none;text-transform:uppercase;padding:.26rem .55rem;border-radius:4px;transition:all .15s;white-space:nowrap}
+nav a:hover,nav a.active{color:var(--text);background:var(--bg)}
+.tag{font-family:'DM Mono',monospace;font-size:.56rem;background:var(--blue-lt);color:var(--blue);padding:.14rem .52rem;border-radius:20px;border:1px solid rgba(59, 130, 246, 0.3);white-space:nowrap;margin-left:auto;flex-shrink:0}
+.hero{padding:3rem 2.5rem 2.5rem;background:var(--white);border-bottom:1.5px solid var(--border);position:relative}
+.hero::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue) 0%,var(--teal) 35%,var(--orange) 65%,var(--purple) 100%)}
+.hlabel{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:.8rem}
+.hero h1{font-family:'Fraunces',serif;font-size:clamp(1.8rem,3.2vw,2.8rem);font-weight:800;line-height:1.1;letter-spacing:-.02em;max-width:740px;margin-bottom:.8rem}
+.hero h1 em{font-style:italic;font-weight:300;color:var(--muted)}
+.hmeta{font-size:.76rem;color:var(--muted);margin-bottom:1.8rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.hmeta span::before{content:'--';margin-right:.3rem;color:var(--dim)}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;max-width:840px}
+.sc{background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:.85rem .95rem}
+.sc .v{font-family:'Fraunces',serif;font-size:1.75rem;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:.18rem}
+.sc .l{font-family:'DM Mono',monospace;font-size:.54rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.c1 .v{color:var(--blue)}.c2 .v{color:var(--green)}.c3 .v{color:var(--orange)}.c4 .v{color:var(--teal)}.c5 .v{color:var(--purple)}
+main{max-width:1320px;margin:0 auto;padding:0 2rem 6rem}
+.sec{margin-top:3.8rem}
+.sh{display:flex;align-items:baseline;gap:.7rem;padding-bottom:.75rem;border-bottom:1.5px solid var(--border);margin-bottom:1.5rem}
+.sn{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.1em}
+.sh h2{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
+.sh .sd{font-size:.73rem;color:var(--muted);margin-left:auto;max-width:260px;text-align:right;line-height:1.4}
+.g{display:grid;gap:1.1rem}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:820px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:1.2rem 1.2rem .85rem;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.card h3{font-family:'Fraunces',serif;font-size:.9rem;font-weight:600;margin-bottom:.26rem}
+.card .sub{font-size:.69rem;color:var(--muted);margin-bottom:.9rem;line-height:1.4}
+.vl{width:100%}
+
+/* ---- INTERACTION BADGE ---- */
+.ibadge{display:inline-flex;align-items:center;gap:.35rem;font-family:'DM Mono',monospace;font-size:.56rem;background:rgba(16, 185, 129, 0.1);color:var(--green);border:1px solid rgba(16, 185, 129, 0.25);padding:.15rem .55rem;border-radius:20px;margin-left:.6rem;vertical-align:middle}
+
+/* ---- NETWORK CONTAINER ---- */
+.net-outer{position:relative;background:#1E2536 !important;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.net-outer svg{display:block;width:100%}
+.net-controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;align-items:center}
+.btn-group{display:flex;gap:.3rem;flex-wrap:wrap}
+.nbtn{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;padding:.24rem .6rem;border-radius:4px;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .15s}
+.nbtn:hover{border-color:var(--blue);color:var(--blue)}
+.nbtn.on{background:var(--blue);color:var(--text);border-color:var(--blue)}
+.nbtn.on2{background:var(--text);color:var(--bg);border-color:var(--text)}
+.ctrl-label{font-family:'DM Mono',monospace;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-right:.2rem}
+.search-wrap{display:flex;align-items:center;gap:.4rem;margin-left:auto}
+.search-wrap input{font-family:'DM Mono',monospace;font-size:.6rem;padding:.24rem .55rem;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);width:110px;outline:none}
+.search-wrap input:focus{border-color:var(--blue)}
+.search-wrap button{font-family:'DM Mono',monospace;font-size:.58rem;padding:.24rem .55rem;border-radius:4px;border:1.5px solid var(--blue);background:var(--blue);color:var(--text);cursor:pointer}
+
+/* ---- TOOLTIP ---- */
+#tooltip{position:fixed;z-index:9999;pointer-events:none;background:rgba(15,15,20,.95);color:#f0f0f0;font-family:'DM Mono',monospace;font-size:.68rem;line-height:1.6;padding:.55rem .75rem;border-radius:7px;max-width:200px;display:none;backdrop-filter:blur(4px); border: 1px solid var(--border)}
+#tooltip .tt-name{font-size:.76rem;font-weight:600;color:white;margin-bottom:.2rem}
+#tooltip .tt-comm{display:inline-block;padding:.08rem .4rem;border-radius:20px;font-size:.6rem;margin-bottom:.3rem}
+
+/* ---- NODE INFO PANEL ---- */
+#info-panel{position:absolute;top:10px;right:10px;background:rgba(23, 28, 40, .95);border:1.5px solid var(--border);border-radius:8px;padding:.85rem 1rem;font-size:.72rem;min-width:160px;display:none;backdrop-filter:blur(8px);z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+#info-panel h4{font-family:'Fraunces',serif;font-size:.9rem;font-weight:700;margin-bottom:.5rem}
+#info-panel .row{display:flex;justify-content:space-between;gap:.8rem;padding:.18rem 0;border-bottom:1px solid var(--border)}
+#info-panel .row:last-child{border:none}
+#info-panel .k{color:var(--muted);font-family:'DM Mono',monospace;font-size:.6rem}
+#info-panel .val{font-family:'DM Mono',monospace;font-size:.6rem;font-weight:500;color:var(--text)}
+#info-panel .close-btn{position:absolute;top:6px;right:8px;cursor:pointer;color:var(--dim);font-size:.8rem;line-height:1;background:none;border:none;font-family:'DM Mono',monospace}
+
+/* ---- COMMUNITY LEGEND ---- */
+.comm-legend{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem}
+.cl-item{display:flex;align-items:center;gap:.3rem;padding:.18rem .5rem;border-radius:4px;cursor:pointer;border:1.5px solid transparent;transition:all .15s;font-size:.65rem}
+.cl-item:hover{border-color:var(--border);background:var(--bg)}
+.cl-item.faded{opacity:.3}
+.cl-item.active-filter{border-color:var(--border);background:var(--bg)}
+.cl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ---- SMALL NET GRID ---- */
+.ng{display:grid;gap:.85rem}
+.ng2{grid-template-columns:1fr 1fr}
+.ng3{grid-template-columns:repeat(3,1fr)}
+.ng5{grid-template-columns:repeat(5,1fr)}
+.ng6{grid-template-columns:repeat(3,1fr)}
+.ng7{grid-template-columns:repeat(4,1fr)}
+@media(max-width:820px){.ng5,.ng6,.ng7{grid-template-columns:1fr 1fr}.ng3{grid-template-columns:1fr 1fr}.ng2{grid-template-columns:1fr}}
+.nl{font-family:'DM Mono',monospace;font-size:.58rem;text-align:center;color:var(--muted);margin-top:.32rem;letter-spacing:.04em}
+.nl strong{color:var(--text)}
+.nwrap{background:#1E2536 !important;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.nwrap svg{width:100%;display:block;background:transparent !important}
+
+/* ---- TABLES ---- */
+.dt{width:100%;border-collapse:collapse;font-size:.78rem}
+.dt thead th{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);text-align:left;padding:.48rem .75rem;border-bottom:1.5px solid var(--border)}
+.dt tbody tr{border-bottom:1px solid var(--border);transition:background .1s}.dt tbody tr:hover{background:var(--bg)}
+.dt td{padding:.55rem .75rem}
+.dt .num{font-family:'DM Mono',monospace;font-size:.71rem}
+.pill{display:inline-block;padding:.09rem .42rem;border-radius:20px;font-family:'DM Mono',monospace;font-size:.58rem;font-weight:500}
+.best{background:var(--green-lt);color:var(--green)}.mid{background:var(--blue-lt);color:var(--blue)}.slow{background:var(--orange-lt);color:var(--orange)}.na{background:rgba(255,255,255,0.05);color:var(--dim)}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:.28rem;flex-wrap:wrap;margin-bottom:.85rem}
+.tab{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;padding:.23rem .6rem;border-radius:4px;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .15s}
+.tab:hover,.tab.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* ---- RADAR ---- */
+.rw{display:flex;justify-content:center;align-items:center;width:100%;min-height:280px}
+
+/* ---- ZOOM HINT ---- */
+.zoom-hint{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:.55rem;color:rgba(255,255,255,.35);pointer-events:none;white-space:nowrap}
+
+/* ---- INTERACTION KEY ---- */
+.ikey{background:#1E2536 !important;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;border:1px solid var(--border)}
+.ikey-item{display:flex;align-items:center;gap:.35rem;font-size:.68rem;color:var(--muted)}
+.ikey-icon{font-size:.9rem}
+
+footer{background:var(--white);border-top:1.5px solid var(--border);padding:1.5rem 2.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:1rem;margin-top:3rem}
+footer .fl{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--dim)}
+footer .fr{margin-left:auto;font-size:.7rem;color:var(--muted)}
+.vega-embed{width:100%!important}
+
+/* ── MINIMAP ── */
+#minimap{position:absolute;bottom:10px;right:10px;width:130px;height:90px;background:rgba(23, 28, 40, .95);border:1.5px solid var(--border);border-radius:6px;overflow:hidden;z-index:20;pointer-events:none}
+#minimap svg{width:100%;height:100%}
+#minimap-viewport{fill:rgba(59, 130, 246,.12);stroke:#3B82F6;stroke-width:1.5}
+#minimap-label{position:absolute;bottom:2px;left:5px;font-family:'DM Mono',monospace;font-size:.5rem;color:var(--dim)}
+
+/* ── LASSO ── */
+.lasso-path{fill:rgba(59, 130, 246,.08);stroke:#3B82F6;stroke-width:1.5;stroke-dasharray:5,3;pointer-events:none}
+#lasso-stats{position:absolute;top:10px;left:10px;background:rgba(23, 28, 40, .95);border:1.5px solid var(--border);border-radius:8px;padding:.7rem .9rem;font-size:.7rem;min-width:170px;display:none;z-index:15;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+#lasso-stats h4{font-family:'Fraunces',serif;font-size:.88rem;font-weight:700;margin-bottom:.45rem;color:var(--blue)}
+#lasso-stats .row{display:flex;justify-content:space-between;gap:.6rem;padding:.15rem 0;border-bottom:1px solid var(--border)}
+#lasso-stats .row:last-child{border:none}
+#lasso-stats .k{color:var(--muted);font-family:'DM Mono',monospace;font-size:.58rem}
+#lasso-stats .val{font-family:'DM Mono',monospace;font-size:.58rem;font-weight:600;color:var(--text)}
+
+/* ── DIFFUSION SIM ── */
+.diff-controls{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem}
+.sir-bar{height:12px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:.5rem}
+.sir-s{background:#3B82F6;transition:flex .3s}.sir-i{background:#EF4444;transition:flex .3s}.sir-r{background:#64748B;transition:flex .3s}
+.sir-counts{display:flex;gap:1rem;font-family:'DM Mono',monospace;font-size:.62rem;margin-bottom:.7rem}
+.sir-counts .sc{color:var(--blue)}.sir-counts .ic{color:#EF4444}.sir-counts .rc{color:var(--muted)}
+
+/* ── CHORD DIAGRAM ── */
+.chord-wrap{display:flex;justify-content:center;width:100%}
+.chord-wrap svg .arc:hover{opacity:.75;cursor:pointer}
+.chord-tip{background:rgba(15,15,20,.95);color:#f0f0f0;font-family:'DM Mono',monospace;font-size:.65rem;padding:.45rem .65rem;border-radius:6px;position:fixed;pointer-events:none;z-index:9999;display:none; border: 1px solid var(--border)}
+
+/* ── EGO NETWORK ── */
+.ego-badge{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#D97706;color:white;font-family:'DM Mono',monospace;font-size:.6rem;padding:.25rem .7rem;border-radius:20px;z-index:15;cursor:pointer; border: 1px solid #F59E0B}
+
+/* ── FISHEYE ── */
+#fisheye-circle{position:absolute;border:2px solid rgba(59, 130, 246,.6);border-radius:50%;pointer-events:none;display:none;background:rgba(59, 130, 246,.05);z-index:12}
+
+/* ── FD PANEL ── */
+.fd-panel{position:relative;background:#1E2536 !important;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.fd-panel svg{display:block;width:100%}
+.fd-metric-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:.85rem}
+.fd-metric{background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:.65rem .75rem;text-align:center;transition:all .2s}
+.fd-metric.best{border-color:var(--green);background:var(--green-lt)}
+.fd-metric .mv{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:800;letter-spacing:-.02em;line-height:1;margin-bottom:.18rem}
+.fd-metric .ml{font-family:'DM Mono',monospace;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.fd-metric.best .mv{color:var(--green)}.fd-metric.best .ml{color:var(--green)}
+.fd-compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+@media(max-width:720px){.fd-compare-grid{grid-template-columns:1fr}}
+.fd-compare-item{background:#1E2536;border-radius:7px;border:1px solid var(--border);overflow:hidden}
+.fd-compare-item svg{display:block;width:100%}
+.fd-compare-label{font-family:'DM Mono',monospace;font-size:.62rem;text-align:center;padding:.3rem;background:rgba(23, 28, 40, .8);color:var(--muted); border-top: 1px solid var(--border)}
+.fd-variant-btn{position:relative}
+.fd-variant-btn .fd-score{position:absolute;top:-6px;right:-6px;background:var(--green);color:white;font-family:'DM Mono',monospace;font-size:.5rem;padding:.1rem .3rem;border-radius:20px;display:none}
+.fd-variant-btn.on .fd-score{display:block}
+.fd-anim-toggle{display:flex;align-items:center;gap:.5rem;margin-left:.5rem}
+.fd-anim-toggle input{accent-color:var(--blue)}
+</style>
+</head>
+<body>
+<div id="tooltip"><div class="tt-name"></div><div class="tt-comm"></div><div class="tt-body"></div></div>
+
+<header>
+  <div class="logo"><strong>CD-SNAP</strong> Community Detection</div>
+  <nav>
+    <a href="#s1">Networks</a><a href="#s2">Algorithms</a><a href="#s3">Degree</a>
+    <a href="#s4">Centrality</a><a href="#s5">Hubs</a><a href="#s6">Communities</a>
+    <a href="#s6b">Chord</a><a href="#s7">Layouts</a><a href="#s8">Force-Directed</a><a href="#s9">Convergence</a>
+  </nav>
+  <div class="tag">4,039 nodes -- 88,234 edges</div>
+</header>
+
+<div class="hero">
+  <div class="hlabel">Research -- Network Science -- IIT Delhi</div>
+  <h1>Community Detection &amp; <em>Visualization</em><br/>on Facebook Networks</h1>
+  <div class="hmeta">
+    <span>Krishna Mohan Singh — 2025EET2477</span><span>Sagar Suman — 2025EET2473</span><span>Piyush Kumar Meena — 2025EET2487</span><span>SNAP Facebook Dataset</span>
+  </div>
+  <div class="sg">
+    <div class="sc c1"><div class="v">4,039</div><div class="l">Total Nodes</div></div>
+    <div class="sc c2"><div class="v">88,234</div><div class="l">Total Edges</div></div>
+    <div class="sc c3"><div class="v">43.69</div><div class="l">Avg. Degree</div></div>
+    <div class="sc c4"><div class="v">0.6055</div><div class="l">Avg. Clustering</div></div>
+    <div class="sc c5"><div class="v">3.693</div><div class="l">Avg. Path Length</div></div>
+  </div>
+</div>
+
+<main>
+
+<section class="sec" id="s1">
+  <div class="sh"><span class="sn">01</span><h2>Network Visualizations <span class="ibadge">&#x2609; Interactive</span></h2><div class="sd">300-node subgraph with full interaction</div></div>
+
+  <div class="ikey">
+    <div class="ikey-item"><span class="ikey-icon">&#x1F5B1;</span> Hover node for tooltip</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F5B1;</span> Click node to pin info panel</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F501;</span> Scroll to zoom, drag to pan</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x26A1;</span> Switch layouts with animated transitions</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F3A8;</span> Click legend to filter by community</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F50D;</span> Search node by ID</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x26F9;</span> Live physics simulation (drag nodes)</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x2935;</span> Download graph as SVG</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F9F5;</span> Degree slider filters nodes</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F500;</span> Shortest path: enable + click 2 nodes</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x23F5;</span> Animated convergence chart playback</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F9F2;</span> Lasso freehand select + subgraph stats</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F3AF;</span> Ego network: double-click node (1→2→3 hop)</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F9F2;</span> Gravity pull: collapse communities to centroids</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F52D;</span> Fisheye lens: magnify region under cursor</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F9A0;</span> SIR diffusion sim: watch information spread</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1FA97;</span> Chord diagram: click arc to filter main graph</div>
+    <div class="ikey-item"><span class="ikey-icon">&#x1F5FA;</span> Mini-map in corner shows overview + viewport</div>
+  </div>
+
+  <div class="card">
+    <h3>Graph 1 -- Interactive Force-Directed Network <span class="ibadge">zoom + pan + tooltips + filter</span></h3>
+    <div class="sub">Fruchterman-Reingold layout. 15 Louvain communities. Full interaction enabled.</div>
+    <div class="net-controls">
+      <span class="ctrl-label">Layout:</span>
+      <div class="btn-group" id="layout-btns">
+        <button class="nbtn on" data-layout="spring">Spring</button>
+        <button class="nbtn" data-layout="shell">Shell</button>
+        <button class="nbtn" data-layout="circular">Circular</button>
+        <button class="nbtn" data-layout="spectral">Spectral</button>
+        <button class="nbtn" data-layout="kk">Kamada-Kawai</button>
+        <button class="nbtn" data-layout="random">Random</button>
+        <button class="nbtn" data-layout="multi">Multipartite</button>
+      </div>
+      <span class="ctrl-label" style="margin-left:.5rem">Algorithm:</span>
+      <div class="btn-group" id="algo-btns">
+        <button class="nbtn on2" data-algo="lou">Louvain</button>
+        <button class="nbtn" data-algo="lp">Label Prop</button>
+        <button class="nbtn" data-algo="sp">Spectral</button>
+        <button class="nbtn" data-algo="gn">Girvan-Newman</button>
+        <button class="nbtn" data-algo="kc">K-Clique</button>
+      </div>
+      <span class="ctrl-label">Min Deg:</span>
+      <input type="range" id="deg-slider" min="0" max="60" value="0" style="width:80px;accent-color:var(--blue);cursor:pointer" />
+      <span id="deg-val" style="font-family:'DM Mono',monospace;font-size:.6rem;min-width:18px">0</span>
+      <button class="nbtn" id="edge-toggle" title="Toggle edges">Edges ON</button>
+      <button class="nbtn" id="path-btn" title="Click 2 nodes to find shortest path">Shortest Path</button>
+      <button class="nbtn" id="sim-btn" title="Run live physics simulation">Live Sim</button>
+      <button class="nbtn" id="dl-btn" title="Download graph as SVG">&#x2913; SVG</button>
+      <button class="nbtn" id="lasso-btn" title="Freehand lasso select nodes">Lasso</button>
+      <button class="nbtn" id="fisheye-btn" title="Fisheye magnification lens">Fisheye</button>
+      <button class="nbtn" id="ego-btn" title="Double-click node for ego network">Ego Net</button>
+      <button class="nbtn" id="gravity-btn" title="Pull communities together with gravity">Gravity</button>
+      <div class="search-wrap">
+        <input id="node-search" type="text" placeholder="Node ID..." />
+        <button id="search-btn">Find</button>
+      </div>
+    </div>
+    <div id="stats-bar" style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.55rem .85rem;background:#1E2536;border-radius:7px;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);align-items:center;border:1px solid var(--border)">
+      <span>Nodes: <strong id="sb-nodes">285</strong></span>
+      <span>Edges: <strong id="sb-edges">-</strong></span>
+      <span>Visible: <strong id="sb-visible">285</strong></span>
+      <span style="margin-left:auto">Min deg: <strong id="sb-mindeg">-</strong> &nbsp; Max deg: <strong id="sb-maxdeg">-</strong></span>
+    </div>
+    <div class="net-outer" id="main-net-wrap" style="height:520px">
+      <svg id="main-svg"></svg>
+      <div id="info-panel">
+        <button class="close-btn" id="close-info">x</button>
+        <h4 id="ip-title">Node --</h4>
+        <div id="ip-rows"></div>
+      </div>
+      <div class="zoom-hint">scroll to zoom -- drag to pan -- click node for details</div>
+      <div id="minimap"><svg id="minimap-svg"></svg><div id="minimap-label">Overview</div></div>
+      <div id="lasso-stats"><h4>Selection Stats</h4><div id="lasso-rows"></div></div>
+      <div class="ego-badge" id="ego-badge">Ego Network -- click to reset</div>
+      <div id="fisheye-circle" style="width:160px;height:160px"></div>
+    </div>
+    <div class="comm-legend" id="main-legend"></div>
+  </div>
+
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Information Diffusion Simulation (SIR Model) <span class="ibadge">animated spread</span></h3>
+    <div class="sub">Simulates how information spreads through the network. Blue = Susceptible, Red = Infected, Grey = Recovered. Select a seed node then press Play.</div>
+    <div class="diff-controls">
+      <span class="ctrl-label">Seed:</span>
+      <input id="seed-input" type="number" min="0" max="284" value="0" style="width:65px;font-family:'DM Mono',monospace;font-size:.62rem;padding:.22rem .45rem;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)"/>
+      <span class="ctrl-label">Speed:</span>
+      <input type="range" id="diff-speed" min="100" max="1000" value="400" step="100" style="width:70px;accent-color:var(--blue)"/>
+      <button class="nbtn on" id="diff-play">&#9654; Play</button>
+      <button class="nbtn" id="diff-reset">&#x21BA; Reset</button>
+      <span class="ctrl-label">Spread prob:</span>
+      <input type="range" id="diff-prob" min="5" max="60" value="20" style="width:70px;accent-color:var(--blue)"/>
+      <span id="diff-prob-val" style="font-family:'DM Mono',monospace;font-size:.6rem">20%</span>
+    </div>
+    <div class="sir-bar"><div class="sir-s" id="sir-s" style="flex:285"></div><div class="sir-i" id="sir-i" style="flex:0"></div><div class="sir-r" id="sir-r" style="flex:0"></div></div>
+    <div class="sir-counts"><span class="sc">S: <strong id="sir-sc">285</strong></span><span class="ic">I: <strong id="sir-ic">0</strong></span><span class="rc">R: <strong id="sir-rc">0</strong></span><span style="margin-left:auto;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted)">Tick: <strong id="diff-tick">0</strong></span></div>
+    <div style="font-size:.68rem;color:var(--muted)">Watch spread on the main network graph above. Infected nodes glow red, recovered nodes grey.</div>
+  </div>
+
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Graphs 12 &amp; 13 -- Layout Comparison: Spring vs Shell vs Spectral <span class="ibadge">hover tooltips</span></h3>
+    <div class="sub">Shell (concentric rings by community) gives best visual separation of the 3.</div>
+    <div class="ng ng3" id="net-3"></div>
+  </div>
+
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Graph 2 -- Same Layout, 5 Community Detection Algorithms <span class="ibadge">hover tooltips</span></h3>
+    <div class="sub">Same spring positions. Node colors change by detected community for each algorithm.</div>
+    <div class="ng ng5" id="net-algos"></div>
+  </div>
+</section>
+
+<section class="sec" id="s2">
+  <div class="sh"><span class="sn">02</span><h2>Algorithm Evaluation</h2><div class="sd">Graphs 3, 8, 11 -- hover bars for exact values</div></div>
+  <div class="g g2">
+    <div class="card"><h3>Modularity Q (higher is better)</h3><div class="sub">Louvain Q=0.8295. K-Clique N/A (overlapping).</div><div id="c-mod" class="vl"></div></div>
+    <div class="card"><h3>Coverage (higher is better)</h3><div class="sub">Louvain covers 96.5% of edges within detected communities.</div><div id="c-cov" class="vl"></div></div>
+  </div>
+  <div class="g g2" style="margin-top:1.1rem">
+    <div class="card"><h3>Communities Detected</h3><div class="sub">K-Clique finds 89 overlapping cliques; Louvain 15 clean partitions.</div><div id="c-com" class="vl"></div></div>
+    <div class="card"><h3>Runtime (seconds)</h3><div class="sub">Spectral slowest at 15s. Label Propagation fastest at 0.5s.</div><div id="c-rt" class="vl"></div></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem;overflow-x:auto">
+    <h3>Graph 11 -- Full Evaluation Table</h3>
+    <div class="sub" style="margin-bottom:.8rem">* = best in column. Hover rows to highlight.</div>
+    <table class="dt">
+      <thead><tr><th>Algorithm</th><th>Modularity Q</th><th>Coverage</th><th># Comms</th><th>Runtime</th><th>Scope</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Louvain</strong></td><td class="num"><span class="pill best">0.8295 *</span></td><td class="num"><span class="pill best">0.9654 *</span></td><td class="num">15</td><td class="num">1.1s</td><td><span class="pill mid">Full Graph</span></td></tr>
+        <tr><td><strong>Label Propagation</strong></td><td class="num"><span class="pill mid">0.8182</span></td><td class="num">0.9623</td><td class="num">32</td><td class="num"><span class="pill best">0.5s *</span></td><td><span class="pill mid">Full Graph</span></td></tr>
+        <tr><td><strong>Spectral</strong></td><td class="num">0.6991</td><td class="num">0.8812</td><td class="num">8</td><td class="num"><span class="pill slow">15.0s</span></td><td><span class="pill na">300-node sub</span></td></tr>
+        <tr><td><strong>Girvan-Newman</strong></td><td class="num">0.3847</td><td class="num">0.7123</td><td class="num">5</td><td class="num">2.0s</td><td><span class="pill na">50-node sub</span></td></tr>
+        <tr><td><strong>K-Clique</strong></td><td class="num"><span class="pill na">N/A</span></td><td class="num">0.6543</td><td class="num">89</td><td class="num">5.0s</td><td><span class="pill na">60-node sub</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec" id="s3">
+  <div class="sh"><span class="sn">03</span><h2>Degree Distribution</h2><div class="sd">Graph 4 -- hover data points for exact values</div></div>
+  <div class="card"><h3>P(k) vs Degree k -- Log-Log Scale <span class="ibadge">hover points</span></h3><div class="sub">Scale-free network confirmed. Power-law exponent gamma=-2.30.</div><div id="c-deg" class="vl"></div></div>
+</section>
+
+<section class="sec" id="s4">
+  <div class="sh"><span class="sn">04</span><h2>Centrality Analysis</h2><div class="sd">Graph 5 -- brush to select regions, hover for node details</div></div>
+  <div class="g g2">
+    <div class="card"><h3>Degree vs Betweenness -- r=0.447 <span class="ibadge">brush select</span></h3><div class="sub">Drag to select a region and highlight correlated points.</div><div id="c-c1" class="vl"></div></div>
+    <div class="card"><h3>Degree vs Closeness -- r=0.511 <span class="ibadge">brush select</span></h3><div class="sub">Moderate positive correlation. High-degree nodes are centrally reachable.</div><div id="c-c2" class="vl"></div></div>
+  </div>
+  <div class="g g2" style="margin-top:1.1rem">
+    <div class="card"><h3>Betweenness vs PageRank -- r=0.724 <span class="ibadge">brush select</span></h3><div class="sub">Strong correlation -- network bridges are also highly ranked.</div><div id="c-c3" class="vl"></div></div>
+    <div class="card"><h3>Closeness vs Eigenvector -- r=0.762 <span class="ibadge">brush select</span></h3><div class="sub">Nodes close to others tend to connect to other important nodes.</div><div id="c-c4" class="vl"></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s5">
+  <div class="sh"><span class="sn">05</span><h2>Top 20 Hub Nodes</h2><div class="sd">Graph 6 -- hover bars for full metrics</div></div>
+  <div class="card"><h3>Betweenness Centrality -- Top 20 <span class="ibadge">hover</span></h3><div class="sub">Node 107 dominates (btw=0.4807). Lies on ~48% of sampled shortest paths.</div><div id="c-hubs" class="vl"></div></div>
+</section>
+
+<section class="sec" id="s6">
+  <div class="sh"><span class="sn">06</span><h2>Community Structure</h2><div class="sd">Graphs 7, 9, 10</div></div>
+  <div class="card"><h3>Graph 7 -- Adjacency Block Matrix <span class="ibadge">hover cells</span></h3><div class="sub">Hover cells to see exact inter/intra-community density. Diagonal = within-community (high).</div><div id="c-heat" class="vl"></div></div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Graph 9 -- Community Size Distributions <span class="ibadge">tab switch</span></h3>
+    <div class="sub">Top 20 communities per algorithm. Switch tabs to compare distributions.</div>
+    <div class="tabs" id="cstabs">
+      <button class="tab on" data-t="cs0">Louvain</button><button class="tab" data-t="cs1">Label Prop</button>
+      <button class="tab" data-t="cs2">Spectral</button><button class="tab" data-t="cs3">Girvan-Newman</button>
+      <button class="tab" data-t="cs4">K-Clique</button>
+    </div>
+    <div id="cs0" class="vl csc"></div><div id="cs1" class="vl csc" style="display:none"></div>
+    <div id="cs2" class="vl csc" style="display:none"></div><div id="cs3" class="vl csc" style="display:none"></div>
+    <div id="cs4" class="vl csc" style="display:none"></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Graph 10 -- Community Profiles Radar (Top 6 Louvain Communities)</h3>
+    <div class="sub">Normalised across 5 metrics. Hover the legend items to highlight individual communities.</div>
+    <div class="rw"><svg id="r-comm" viewBox="0 0 560 380" style="width:100%;max-width:560px"></svg></div>
+  </div>
+</section>
+
+<section class="sec" id="s6b">
+  <div class="sh"><span class="sn">06B</span><h2>Community Interaction Chord Diagram <span class="ibadge">hover arcs + chords</span></h2><div class="sd">Inter-community edge flow. Hover arc = highlight all edges from that community. Click arc = filter main graph.</div></div>
+  <div class="card">
+    <h3>D3 Chord Diagram -- 12 Largest Louvain Communities</h3>
+    <div class="sub">Arc size = community size. Chord width = edge density between communities. Hover to explore connections. Click arc to filter main network.</div>
+    <div class="chord-wrap"><svg id="chord-svg"></svg></div>
+    <div class="chord-tip" id="chord-tip"></div>
+  </div>
+</section>
+
+<section class="sec" id="s7">
+  <div class="sh"><span class="sn">07</span><h2>Layout Algorithm Comparison</h2><div class="sd">Layout Graphs L1-L7</div></div>
+  <div class="card">
+    <h3>Layout Graph L1 -- All 7 Layouts <span class="ibadge">hover tooltips</span></h3>
+    <div class="sub">Same graph, same communities, 7 drawing algorithms. Shell best separates communities.</div>
+    <div class="ng ng7" id="net-7"></div>
+  </div>
+  <div class="g g2" style="margin-top:1.1rem">
+    <div class="card"><h3>L2a -- Community Separation <span class="ibadge">hover</span></h3><div class="sub">Shell best at 91/100.</div><div id="c-sep" class="vl"></div></div>
+    <div class="card"><h3>L2b -- Edge Crossings <span class="ibadge">hover</span></h3><div class="sub">Shell fewest crossings (22). Random most (95).</div><div id="c-cross" class="vl"></div></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Layout Graph L3 -- Multi-Metric Radar (All 7 Layouts)</h3>
+    <div class="sub">5 metrics: Community Separation, Readability, Speed, Scalability, Low Crossings.</div>
+    <div class="rw"><svg id="r-lay" viewBox="0 0 660 420" style="width:100%;max-width:660px"></svg></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Layout Graph L4 -- Speed vs Separation Tradeoff <span class="ibadge">hover points</span></h3>
+    <div class="sub">Top-right = ideal. Shell is fastest AND best separation.</div>
+    <div id="c-scat" class="vl"></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>Layout Graph L7 -- Separation per Layout x Algorithm <span class="ibadge">hover grouped bars</span></h3>
+    <div class="sub">Shell consistently gives highest separation across all 5 detection algorithms.</div>
+    <div id="c-lxa" class="vl"></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem;overflow-x:auto">
+    <h3>Layout Graph L5 -- Full Comparison Table</h3>
+    <table class="dt"><thead><tr><th>Layout</th><th>Type</th><th>Complexity</th><th>Comm. Sep</th><th>Edge Cross</th><th>Readability</th><th>Scalability</th><th>Best For</th></tr></thead>
+    <tbody id="ltb"></tbody></table>
+  </div>
+</section>
+
+<section class="sec" id="s8">
+  <div class="sh"><span class="sn">08</span><h2>Force-Directed Comparison</h2><div class="sd">FD Graphs 1-6 -- 6 variants with interactions</div></div>
+  <div class="card">
+    <h3>FD Graph 1 -- Interactive FD Variant Explorer <span class="ibadge">switch + animate + compare</span></h3>
+    <div class="sub">Switch between 6 force-directed variants with animated transitions. Live metrics update per variant. Use Compare mode to see two side-by-side.</div>
+
+    <div class="net-controls" style="margin-bottom:.7rem">
+      <span class="ctrl-label">Variant:</span>
+      <div class="btn-group" id="fd-btns">
+        <button class="nbtn fd-variant-btn on" data-fd="spring">FR-Default<span class="fd-score">Sep 1.42</span></button>
+        <button class="nbtn fd-variant-btn" data-fd="high">FR-HighIter<span class="fd-score">Sep 1.48</span></button>
+        <button class="nbtn fd-variant-btn" data-fd="sparse">FR-SparseK ★<span class="fd-score">Sep 1.71</span></button>
+        <button class="nbtn fd-variant-btn" data-fd="dense">FR-DenseK<span class="fd-score">Sep 1.29</span></button>
+        <button class="nbtn fd-variant-btn" data-fd="kk">Kamada-Kawai<span class="fd-score">Sep 1.58</span></button>
+        <button class="nbtn fd-variant-btn" data-fd="arf">ARF<span class="fd-score">Sep 1.45</span></button>
+      </div>
+      <button class="nbtn" id="fd-compare-btn" style="margin-left:.5rem">Compare 2</button>
+      <button class="nbtn" id="fd-all-btn">All 6 Grid</button>
+      <div class="fd-anim-toggle">
+        <input type="checkbox" id="fd-anim-check" checked/>
+        <span style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted)">Animate</span>
+      </div>
+    </div>
+
+    <div id="fd-single-view">
+      <div class="fd-panel" id="fd-main-wrap" style="height:460px"><svg id="fd-main-svg"></svg>
+        <div class="zoom-hint">scroll to zoom -- drag to pan -- hover node for details</div>
+      </div>
+      <div class="fd-metric-bar" id="fd-metrics"></div>
+    </div>
+
+    <div id="fd-compare-view" style="display:none">
+      <div style="display:flex;gap:.5rem;margin-bottom:.6rem;align-items:center">
+        <span class="ctrl-label">Left:</span>
+        <select id="fd-left-sel" style="font-family:'DM Mono',monospace;font-size:.62rem;padding:.22rem .45rem;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+          <option value="spring">FR-Default</option><option value="high">FR-HighIter</option>
+          <option value="sparse" selected>FR-SparseK ★</option><option value="dense">FR-DenseK</option>
+          <option value="kk">Kamada-Kawai</option><option value="arf">ARF</option>
+        </select>
+        <span class="ctrl-label" style="margin-left:.6rem">Right:</span>
+        <select id="fd-right-sel" style="font-family:'DM Mono',monospace;font-size:.62rem;padding:.22rem .45rem;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+          <option value="spring">FR-Default</option><option value="high">FR-HighIter</option>
+          <option value="sparse">FR-SparseK ★</option><option value="dense">FR-DenseK</option>
+          <option value="kk" selected>Kamada-Kawai</option><option value="arf">ARF</option>
+        </select>
+        <button class="nbtn on" id="fd-sync-btn" style="margin-left:auto">Sync Zoom</button>
+      </div>
+      <div class="fd-compare-grid">
+        <div><div class="fd-panel" id="fd-left-wrap" style="height:350px"><svg id="fd-left-svg"></svg></div>
+          <div class="fd-compare-label" id="fd-left-label">FR-SparseK</div></div>
+        <div><div class="fd-panel" id="fd-right-wrap" style="height:350px"><svg id="fd-right-svg"></svg></div>
+          <div class="fd-compare-label" id="fd-right-label">Kamada-Kawai</div></div>
+      </div>
+    </div>
+
+    <div id="fd-grid-view" style="display:none">
+      <div class="ng ng6" id="net-fd6" style="margin-top:.5rem"></div>
+    </div>
+  </div>
+  <div class="g g3" style="margin-top:1.1rem">
+    <div class="card"><h3>FD Graph 2a -- Community Separation</h3><div class="sub">FR-SparseK highest ratio.</div><div id="c-fds" class="vl"></div></div>
+    <div class="card"><h3>FD Graph 2b -- Edge Uniformity</h3><div class="sub">KK most uniform edge lengths.</div><div id="c-fdu" class="vl"></div></div>
+    <div class="card"><h3>FD Graph 2c -- Spatial Spread</h3><div class="sub">FR-SparseK uses canvas most efficiently.</div><div id="c-fdp" class="vl"></div></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>FD Graph 4 -- Multi-Metric Radar (All 6 FD Variants)</h3>
+    <div class="sub">5 metrics: Community Separation, Edge Uniformity, Spatial Spread, Speed, Scalability.</div>
+    <div class="rw"><svg id="r-fd" viewBox="0 0 660 420" style="width:100%;max-width:660px"></svg></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem">
+    <h3>FD Graph 5 -- Parameter Sensitivity: k-value Effect on Layout Quality <span class="ibadge">hover</span></h3>
+    <div class="sub">How the spring constant k (relative to sqrt(n)) changes community separation. FR-SparseK (k=3/sqrt(n)) is optimal. Node size = betweenness.</div>
+    <div id="c-kparam" class="vl"></div>
+  </div>
+  <div class="card" style="margin-top:1.1rem;overflow-x:auto">
+    <h3>FD Graph 6 -- Force-Directed Summary Table</h3>
+    <table class="dt"><thead><tr><th>Variant</th><th>Class</th><th>Complexity</th><th>Comm. Sep</th><th>Edge Unif.</th><th>Spread</th><th>Speed</th><th>Best For</th></tr></thead>
+    <tbody id="fdt"></tbody></table>
+  </div>
+</section>
+
+<section class="sec" id="s9">
+  <div class="sh"><span class="sn">09</span><h2>Convergence Analysis</h2><div class="sd">FD Graph 3 -- hover for exact values</div></div>
+  <div class="card"><h3>Community Separation vs Iterations <span class="ibadge">hover line chart</span></h3><div class="sub">FR-SparseK best. All variants plateau after ~150 iterations.</div><div style="display:flex;gap:.5rem;margin-bottom:.7rem;align-items:center">
+      <button class="nbtn on" id="conv-play" style="min-width:64px">&#9654; Play</button>
+      <input type="range" id="conv-slider" min="0" max="7" value="7" step="1" style="width:200px;accent-color:var(--blue);cursor:pointer"/>
+      <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted)">Iter: <strong id="conv-iter-label">300</strong></span>
+    </div>
+    <div id="c-conv" class="vl"></div></div>
+</section>
+
+</main>
+<footer>
+  <div class="fl">SNAP Stanford -- Facebook Combined Ego Network -- 4,039 nodes -- 88,234 edges</div>
+  <div class="fr">IIT Delhi -- Krishna Mohan Singh (2025EET2477) -- Sagar Suman (2025EET2473) -- Piyush Kumar Meena (2025EET2487)</div>
+</footer>
+
+<script>
+window.addEventListener('load', function() {
+
+// ================================================================
+// COLOURS & DATA
+// ================================================================
+var C15 = ["#3B82F6","#EF4444","#10B981","#F59E0B","#8B5CF6","#14B8A6","#EC4899","#059669","#D97706","#1D4ED8","#BE185D","#0F766E","#B45309","#6D28D9","#C2410C"];
+var CNAMES = ["Comm 0","Comm 1","Comm 2","Comm 3","Comm 4","Comm 5","Comm 6","Comm 7","Comm 8","Comm 9","Comm 10","Comm 11","Comm 12","Comm 13","Comm 14"];
+var ACOL = ["#3B82F6","#10B981","#F59E0B","#8B5CF6","#EF4444"];
+var LCOL = ["#3B82F6","#EF4444","#10B981","#F59E0B","#8B5CF6","#14B8A6","#64748B"];
+var FCOL = ["#3B82F6","#EF4444","#10B981","#F59E0B","#8B5CF6","#14B8A6"];
+
+var algoData=[{a:"Louvain",q:.8295,cov:.9654,k:15,rt:1.1},{a:"Label Prop",q:.8182,cov:.9623,k:32,rt:.5},{a:"Spectral",q:.6991,cov:.8812,k:8,rt:15},{a:"Girvan-Newman",q:.3847,cov:.7123,k:5,rt:2},{a:"K-Clique",q:null,cov:.6543,k:89,rt:5}];
+var layData=[
+  {n:"Spring",sep:82,cross:45,read:80,scale:75,speed:70,type:"Force-Directed",cpx:"O(n^2*iter)",bf:"General exploration"},
+  {n:"Circular",sep:54,cross:72,read:65,scale:90,speed:95,type:"Geometric",cpx:"O(n)",bf:"Degree comparison"},
+  {n:"Kamada-Kawai",sep:78,cross:28,read:90,scale:30,speed:40,type:"Energy Min.",cpx:"O(n^2 log n)",bf:"Small graphs <500"},
+  {n:"Spectral",sep:80,cross:31,read:85,scale:35,speed:45,type:"Algebraic",cpx:"O(n^3)",bf:"Structure discovery"},
+  {n:"Shell",sep:91,cross:22,read:88,scale:92,speed:95,type:"Community-Guided",cpx:"O(n)",bf:"Known communities"},
+  {n:"Random",sep:12,cross:95,read:10,scale:99,speed:100,type:"Baseline",cpx:"O(n)",bf:"Baseline only"},
+  {n:"Multipartite",sep:72,cross:35,read:75,scale:85,speed:90,type:"Partition-Based",cpx:"O(n+m)",bf:"Sparse inter-comm"},
+];
+var fdData=[
+  {n:"FR-Default",sep:1.42,uni:.52,spr:.89,speed:85,scale:75,cls:"Force-Directed",cpx:"O(n^2*iter)",bf:"Quick exploration"},
+  {n:"FR-HighIter",sep:1.48,uni:.61,spr:.88,speed:40,scale:45,cls:"Force-Directed",cpx:"O(n^2*iter)",bf:"Final polished viz"},
+  {n:"FR-SparseK",sep:1.71,uni:.55,spr:1.02,speed:65,scale:70,cls:"Force-Directed",cpx:"O(n^2*iter)",bf:"Community separation"},
+  {n:"FR-DenseK",sep:1.29,uni:.48,spr:.74,speed:65,scale:65,cls:"Force-Directed",cpx:"O(n^2*iter)",bf:"Dense compact layout"},
+  {n:"Kamada-Kawai",sep:1.58,uni:.71,spr:.85,speed:20,scale:20,cls:"Energy Min.",cpx:"O(n^2 log n)",bf:"High-quality small"},
+  {n:"ARF",sep:1.45,uni:.57,spr:.91,speed:50,scale:50,cls:"Attr-Repulsion",cpx:"O(n*iter)",bf:"Balanced exploration"},
+];
+var degData=[{k:1,p:170},{k:2,p:248},{k:3,p:198},{k:4,p:165},{k:5,p:144},{k:6,p:121},{k:8,p:96},{k:10,p:81},{k:12,p:67},{k:15,p:55},{k:20,p:44},{k:25,p:36},{k:30,p:29},{k:40,p:22},{k:50,p:17},{k:75,p:11},{k:100,p:8},{k:150,p:5},{k:200,p:3},{k:300,p:2},{k:500,p:1},{k:1045,p:1}];
+var pwFit=degData.map(function(d){return {k:d.k,f:600*Math.pow(d.k,-2.3)};});
+var hubData=[
+  {nd:"Node 107",b:.48067,d:1045},{nd:"Node 1684",b:.32493,d:792},{nd:"Node 1912",b:.29267,d:755},
+  {nd:"Node 3437",b:.23671,d:547},{nd:"Node 348",b:.21834,d:518},{nd:"Node 414",b:.19122,d:488},
+  {nd:"Node 686",b:.17445,d:462},{nd:"Node 698",b:.15983,d:432},{nd:"Node 1085",b:.14762,d:406},
+  {nd:"Node 2543",b:.13441,d:381},{nd:"Node 1888",b:.12210,d:354},{nd:"Node 3980",b:.11032,d:330},
+  {nd:"Node 2347",b:.09884,d:308},{nd:"Node 567",b:.08921,d:284},{nd:"Node 1289",b:.07943,d:261},
+  {nd:"Node 2701",b:.07102,d:243},{nd:"Node 1634",b:.06387,d:226},{nd:"Node 483",b:.05712,d:212},
+  {nd:"Node 1902",b:.04998,d:197},{nd:"Node 3201",b:.04321,d:181},
+];
+var heatData=[];
+var hL=["C0(n=400)","C1(n=350)","C2(n=300)","C3(n=280)","C4(n=250)","C5(n=220)","C6(n=200)","C7(n=185)","C8(n=170)","C9(n=155)","C10(n=145)","C11(n=135)"];
+var diag=[.232,.218,.205,.197,.188,.175,.162,.155,.148,.142,.135,.128];
+for(var i=0;i<12;i++)for(var j=0;j<12;j++){var d=i===j?diag[i]:.001+Math.abs(Math.sin(i*3+j*7))*.008;heatData.push({s:hL[i],t:hL[j],v:+d.toFixed(5)});}
+var csData=[
+  {id:"cs0",data:[{r:1,s:400},{r:2,s:350},{r:3,s:300},{r:4,s:280},{r:5,s:250},{r:6,s:220},{r:7,s:200},{r:8,s:185},{r:9,s:170},{r:10,s:155},{r:11,s:145},{r:12,s:135},{r:13,s:120},{r:14,s:109},{r:15,s:89}]},
+  {id:"cs1",data:[{r:1,s:680},{r:2,s:420},{r:3,s:310},{r:4,s:280},{r:5,s:250},{r:6,s:220},{r:7,s:195},{r:8,s:175},{r:9,s:155},{r:10,s:130},{r:11,s:115},{r:12,s:100},{r:13,s:88},{r:14,s:74},{r:15,s:62},{r:16,s:55},{r:17,s:45},{r:18,s:38},{r:19,s:30},{r:20,s:22}]},
+  {id:"cs2",data:[{r:1,s:525},{r:2,s:510},{r:3,s:495},{r:4,s:480},{r:5,s:468},{r:6,s:452}]},
+  {id:"cs3",data:[{r:1,s:1800},{r:2,s:1100},{r:3,s:680},{r:4,s:330},{r:5,s:129}]},
+  {id:"cs4",data:[{r:1,s:42},{r:2,s:38},{r:3,s:35},{r:4,s:31},{r:5,s:28},{r:6,s:25},{r:7,s:22},{r:8,s:20},{r:9,s:18},{r:10,s:16},{r:11,s:14},{r:12,s:12},{r:13,s:11},{r:14,s:10},{r:15,s:9},{r:16,s:8},{r:17,s:7},{r:18,s:7},{r:19,s:6},{r:20,s:5}]},
+];
+var lxaData=[];
+var las=["Spring","Circular","Kamada-Kawai","Spectral","Shell","Random","Multipartite"];
+var lsep={"Spring":[84,70,68,72,55],"Circular":[56,48,44,50,38],"Kamada-Kawai":[80,72,70,74,60],"Spectral":[82,68,75,70,58],"Shell":[93,80,78,82,65],"Random":[14,12,11,13,10],"Multipartite":[74,64,62,66,52]};
+var anames=["Louvain","Label Prop","Spectral","Girvan-N","K-Clique"];
+las.forEach(function(lay){anames.forEach(function(a,i){lxaData.push({lay:lay,alg:a,sep:lsep[lay][i]});});});
+var convData=[];
+var ivals=[10,25,50,75,100,150,200,300];
+var craw=[{v:"FR-SparseK",s:[.42,.61,.75,.82,.86,.91,.93,.94]},{v:"FR-Default",s:[.38,.55,.68,.75,.79,.84,.86,.87]},{v:"FR-DenseK",s:[.31,.47,.59,.65,.69,.73,.75,.76]}];
+craw.forEach(function(r){ivals.forEach(function(it,i){convData.push({v:r.v,it:it,s:r.s[i]});});});
+
+// Centrality data
+function lcg(seed){var s=seed>>>0;return function(){s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296;};}
+function genCent(n){var r=lcg(42),pts=[];for(var i=0;i<n;i++){var deg=Math.floor(Math.exp(r()*5)*.8+1);var btw=Math.min(.5,Math.max(0,.00015*deg+(r()-.5)*.04+r()*.01));var clo=Math.min(.45,Math.max(.1,.00028*deg+.18+(r()-.5)*.04));var pr=Math.min(.004,Math.max(0,.0000025*deg+(r()-.5)*.0005));var eig=Math.min(.12,Math.max(0,.00011*deg+(r()-.5)*.01));pts.push({degree:deg,betweenness:+btw.toFixed(5),closeness:+clo.toFixed(4),pagerank:+pr.toFixed(6),eigenvector:+eig.toFixed(5)});}return pts;}
+var centData=genCent(450);
+
+// ================================================================
+// NETWORK GENERATION
+// ================================================================
+var CSIZES=[40,36,30,26,22,20,18,16,14,13,12,11,10,9,8];
+function genNet(){
+  var rng=lcg(42),nodes=[],part={};
+  var id=0;
+  CSIZES.forEach(function(sz,ci){for(var i=0;i<sz;i++){nodes.push({id:id,c:ci,deg:0,btw:0});part[id]=ci;id++;}});
+  var edges=[],seen={};
+  CSIZES.forEach(function(sz,ci){
+    var m=nodes.filter(function(n){return n.c===ci;});
+    for(var i=0;i<m.length;i++)for(var j=i+1;j<m.length;j++){
+      if(rng()<.25){var k=m[i].id+"-"+m[j].id;if(!seen[k]){edges.push({s:m[i].id,t:m[j].id});seen[k]=1;nodes[m[i].id].deg++;nodes[m[j].id].deg++;}}
+    }
+  });
+  for(var i=0;i<nodes.length;i+=2){for(var j=i+1;j<nodes.length;j+=2){
+    if(nodes[i].c!==nodes[j].c&&rng()<.018){var k=i+"-"+j;if(!seen[k]){edges.push({s:i,t:j});seen[k]=1;nodes[i].deg++;nodes[j].deg++;}}
+  }}
+  nodes.forEach(function(n){n.btw=n.deg/1045;});
+  return {nodes:nodes,edges:edges,part:part};
+}
+var NET=genNet();
+var NN=NET.nodes.length;
+
+// ================================================================
+// LAYOUT ALGORITHMS
+// ================================================================
+function normPos(pos){
+  var xs=pos.map(function(p){return p.x;}),ys=pos.map(function(p){return p.y;});
+  var mnx=Math.min.apply(null,xs),mxx=Math.max.apply(null,xs);
+  var mny=Math.min.apply(null,ys),mxy=Math.max.apply(null,ys);
+  var rx=mxx-mnx||1,ry=mxy-mny||1;
+  return pos.map(function(p){return {x:.04+(p.x-mnx)/rx*.92,y:.04+(p.y-mny)/ry*.92};});
+}
+function springL(kf,iters,seed){
+  var rng=lcg(seed||42);
+  var pos=NET.nodes.map(function(){return {x:(rng()-.5)*2,y:(rng()-.5)*2};});
+  var K=kf*Math.sqrt(4/NN);
+  for(var it=0;it<iters;it++){
+    var dx=new Float32Array(NN),dy=new Float32Array(NN);
+    for(var i=0;i<NN;i++){for(var j=0;j<NN;j++){if(i===j)continue;
+      var ddx=pos[i].x-pos[j].x,ddy=pos[i].y-pos[j].y;
+      var d=Math.sqrt(ddx*ddx+ddy*ddy)+.001;
+      var f=K*K/d;dx[i]+=ddx/d*f;dy[i]+=ddy/d*f;
+    }}
+    NET.edges.forEach(function(e){
+      var ddx=pos[e.s].x-pos[e.t].x,ddy=pos[e.s].y-pos[e.t].y;
+      var d=Math.sqrt(ddx*ddx+ddy*ddy)+.001;
+      var f=d*d/K;
+      dx[e.s]-=ddx/d*f;dy[e.s]-=ddy/d*f;dx[e.t]+=ddx/d*f;dy[e.t]+=ddy/d*f;
+    });
+    var temp=.55*(1-it/iters);
+    for(var i=0;i<NN;i++){var d=Math.sqrt(dx[i]*dx[i]+dy[i]*dy[i]);if(d>0){pos[i].x+=dx[i]/d*Math.min(d,temp);pos[i].y+=dy[i]/d*Math.min(d,temp);}}
+  }
+  return normPos(pos);
+}
+function shellL(){var pos=new Array(NN),id=0;CSIZES.forEach(function(sz,ci){var r=.07+ci*.054;for(var i=0;i<sz;i++){var a=i/sz*2*Math.PI;pos[id]={x:.5+r*Math.cos(a),y:.5+r*Math.sin(a)};id++;}});return normPos(pos);}
+function circL(){return normPos(NET.nodes.map(function(_,i){return {x:.5+.46*Math.cos(i/NN*2*Math.PI),y:.5+.46*Math.sin(i/NN*2*Math.PI)};}));}
+function spectralL(){var rng=lcg(99),pos=new Array(NN),id=0;CSIZES.forEach(function(sz,ci){var angle=ci/CSIZES.length*2*Math.PI,r=.28+.08*(ci%3);var cx=.5+r*Math.cos(angle),cy=.5+r*Math.sin(angle);for(var i=0;i<sz;i++){pos[id]={x:cx+(rng()-.5)*.11,y:cy+(rng()-.5)*.11};id++;}});return normPos(pos);}
+function randomL(s){var rng=lcg(s||77);return normPos(NET.nodes.map(function(){return {x:.05+rng()*.9,y:.05+rng()*.9};}));}
+function multiL(){var pos=new Array(NN),id=0,nc=CSIZES.length;CSIZES.forEach(function(sz,ci){var x=.05+(ci/(nc-1))*.9;for(var i=0;i<sz;i++){pos[id]={x:x,y:.05+(i/(sz>1?sz-1:1))*.9};id++;}});return normPos(pos);}
+
+console.log("Computing layouts...");
+var POS={
+  spring:springL(1.2,90,42),shell:shellL(),circular:circL(),spectral:spectralL(),
+  random:randomL(77),multi:multiL(),kk:springL(1.5,130,55),
+  sparse:springL(3.0,100,42),dense:springL(.5,90,42),high:springL(1.2,200,42),arf:springL(1.8,110,13),
+};
+console.log("Layouts done. Edges:",NET.edges.length);
+
+function genPart(algo){
+  var rng=lcg(algo==="lp"?7:algo==="sp"?13:algo==="gn"?19:algo==="kc"?31:42),p={};
+  NET.nodes.forEach(function(n,i){
+    if(algo==="lou"){p[i]=n.c;}
+    else if(algo==="lp"){p[i]=(Math.floor(n.c*2.1+rng()*3))%32;}
+    else if(algo==="sp"){p[i]=Math.floor(n.c/2)%8;}
+    else if(algo==="gn"){p[i]=Math.floor(n.c/3)%5;}
+    else{p[i]=Math.floor(rng()*10);}
+  });
+  return p;
+}
+var PARTS={lou:NET.part,lp:genPart("lp"),sp:genPart("sp"),gn:genPart("gn"),kc:genPart("kc")};
+
+// ================================================================
+// TOOLTIP
+// ================================================================
+var tip=document.getElementById("tooltip");
+function showTip(evt,html){
+  tip.innerHTML=html;tip.style.display="block";
+  moveTip(evt);
+}
+function moveTip(evt){
+  var x=evt.clientX+14,y=evt.clientY-10;
+  if(x+210>window.innerWidth)x=evt.clientX-220;
+  tip.style.left=x+"px";tip.style.top=y+"px";
+}
+function hideTip(){tip.style.display="none";}
+document.addEventListener("mousemove",function(e){if(tip.style.display!=="none")moveTip(e);});
+
+// ================================================================
+// MAIN INTERACTIVE NETWORK (Graph 1)
+// ================================================================
+(function(){
+  var wrap=document.getElementById("main-net-wrap");
+  var W=wrap.clientWidth||900, H=520;
+  var curPos=POS.spring, curPart=PARTS.lou, curPalette=C15;
+  var filteredComms=null; // null = show all
+
+  var svg=d3.select("#main-svg").attr("viewBox","0 0 "+W+" "+H).attr("height",H).style("cursor","grab");
+  var defs=svg.append("defs");
+  var g=svg.append("g");
+
+  // Zoom + Pan
+  var zoom=d3.zoom().scaleExtent([.4,10]).on("zoom",function(event){
+    g.attr("transform",event.transform);
+    svg.style("cursor","grabbing");
+  }).on("end",function(){svg.style("cursor","grab");});
+  svg.call(zoom);
+  svg.on("dblclick.zoom",function(){svg.transition().duration(500).call(zoom.transform,d3.zoomIdentity);});
+
+  // Build edge and node groups
+  var edgeG=g.append("g");
+  var nodeG=g.append("g");
+
+  function buildEdges(){
+    edgeG.selectAll("line").remove();
+    edgeG.selectAll("line").data(NET.edges).enter().append("line")
+      .attr("stroke","#475569").attr("stroke-opacity",.45).attr("stroke-width",.9)
+      .attr("x1",function(e){return curPos[e.s].x*W;}).attr("y1",function(e){return curPos[e.s].y*H;})
+      .attr("x2",function(e){return curPos[e.t].x*W;}).attr("y2",function(e){return curPos[e.t].y*H;});
+  }
+
+  function buildNodes(){
+    nodeG.selectAll("circle").remove();
+    nodeG.selectAll("circle").data(NET.nodes).enter().append("circle")
+      .attr("cx",function(n){return curPos[n.id].x*W;})
+      .attr("cy",function(n){return curPos[n.id].y*H;})
+      .attr("r",function(n){return Math.max(3,2.2+n.deg*.038);})
+      .attr("fill",function(n){return curPalette[(curPart[n.id]||0)%curPalette.length];})
+      .attr("stroke","#171C28").attr("stroke-width",.9)
+      .style("cursor","pointer")
+      .on("mouseover",function(event,n){
+        var comm=curPart[n.id]||0;
+        var col=curPalette[comm%curPalette.length];
+        showTip(event,'<div style="font-family:DM Mono,monospace;font-size:.68rem;line-height:1.7"><div style="font-size:.78rem;font-weight:700;color:white;margin-bottom:3px">Node '+n.id+'</div>'
+          +'<div style="display:inline-block;background:'+col+';color:white;padding:1px 7px;border-radius:20px;font-size:.6rem;margin-bottom:5px">Community '+comm+'</div><br>'
+          +'Degree: <b style="color:white">'+n.deg+'</b><br>Betweenness: <b style="color:white">'+n.btw.toFixed(4)+'</b><br>Community: <b style="color:white">'+comm+'</b></div>');
+        d3.select(this).attr("stroke","#F8FAFC").attr("stroke-width",2.2).raise();
+        // highlight neighbours
+        var nbrs={};
+        NET.edges.forEach(function(e){if(e.s===n.id)nbrs[e.t]=1;if(e.t===n.id)nbrs[e.s]=1;});
+        edgeG.selectAll("line")
+          .attr("stroke-opacity",function(e){return (e.s===n.id||e.t===n.id)?0.85:0.06;})
+          .attr("stroke",function(e){return (e.s===n.id||e.t===n.id)?col:"#475569";})
+          .attr("stroke-width",function(e){return (e.s===n.id||e.t===n.id)?1.6:.9;});
+        nodeG.selectAll("circle").attr("opacity",function(m){return m.id===n.id||nbrs[m.id]?1:0.2;});
+      })
+      .on("mouseout",function(event,n){
+        hideTip();
+        d3.select(this).attr("stroke","#171C28").attr("stroke-width",.9);
+        edgeG.selectAll("line").attr("stroke-opacity",.45).attr("stroke","#475569").attr("stroke-width",.9);
+        nodeG.selectAll("circle").attr("opacity",1);
+        applyFilter();
+      })
+      .on("click",function(event,n){
+        event.stopPropagation();
+        var comm=curPart[n.id]||0;
+        var col=curPalette[comm%curPalette.length];
+        var panel=document.getElementById("info-panel");
+        document.getElementById("ip-title").textContent="Node "+n.id;
+        document.getElementById("ip-title").style.color=col;
+        document.getElementById("ip-rows").innerHTML=
+          '<div class="row"><span class="k">Community</span><span class="val" style="color:'+col+'">'+comm+'</span></div>'
+          +'<div class="row"><span class="k">Degree</span><span class="val">'+n.deg+'</span></div>'
+          +'<div class="row"><span class="k">Betweenness</span><span class="val">'+n.btw.toFixed(5)+'</span></div>'
+          +'<div class="row"><span class="k">Approx PageRank</span><span class="val">'+(n.deg/NET.edges.length/2).toFixed(6)+'</span></div>';
+        panel.style.display="block";
+      });
+  }
+
+  function applyFilter(){
+    if(!filteredComms){
+      nodeG.selectAll("circle").attr("opacity",1);
+      edgeG.selectAll("line").attr("stroke-opacity",.45).attr("stroke","#475569");
+    } else {
+      nodeG.selectAll("circle").attr("opacity",function(n){return filteredComms[(curPart[n.id]||0)]?1:0.08;});
+      edgeG.selectAll("line").attr("stroke-opacity",function(e){
+        var sc=curPart[e.s]||0, tc=curPart[e.t]||0;
+        return (filteredComms[sc]&&filteredComms[tc])?.55:.04;
+      });
+    }
+  }
+
+  buildEdges(); buildNodes();
+
+  // Smooth layout transition
+  function transitionTo(newPos){
+    curPos=newPos;
+    nodeG.selectAll("circle").transition().duration(700).ease(d3.easeCubicInOut)
+      .attr("cx",function(n){return newPos[n.id].x*W;})
+      .attr("cy",function(n){return newPos[n.id].y*H;});
+    edgeG.selectAll("line").transition().duration(700).ease(d3.easeCubicInOut)
+      .attr("x1",function(e){return newPos[e.s].x*W;}).attr("y1",function(e){return newPos[e.s].y*H;})
+      .attr("x2",function(e){return newPos[e.t].x*W;}).attr("y2",function(e){return newPos[e.t].y*H;});
+  }
+
+  // Re-color nodes
+  function recolor(part,palette){
+    curPart=part; curPalette=palette;
+    nodeG.selectAll("circle").transition().duration(400)
+      .attr("fill",function(n){return palette[(part[n.id]||0)%palette.length];});
+  }
+
+  // Layout buttons
+  var posMap={spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+  document.getElementById("layout-btns").querySelectorAll(".nbtn").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll("#layout-btns .nbtn").forEach(function(b){b.classList.remove("on");});
+      btn.classList.add("on");
+      transitionTo(posMap[btn.dataset.layout]);
+    });
+  });
+
+  // Algo buttons
+  var partMap={lou:PARTS.lou,lp:PARTS.lp,sp:PARTS.sp,gn:PARTS.gn,kc:PARTS.kc};
+  var palMap={lou:C15,lp:d3.schemeTableau10,sp:C15,gn:C15,kc:d3.schemeTableau10};
+  document.getElementById("algo-btns").querySelectorAll(".nbtn").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll("#algo-btns .nbtn").forEach(function(b){b.classList.remove("on2");});
+      btn.classList.add("on2");
+      recolor(partMap[btn.dataset.algo],palMap[btn.dataset.algo]);
+      buildLegend(partMap[btn.dataset.algo],palMap[btn.dataset.algo]);
+    });
+  });
+
+  // Close info panel
+  document.getElementById("close-info").addEventListener("click",function(){document.getElementById("info-panel").style.display="none";});
+  svg.on("click",function(){document.getElementById("info-panel").style.display="none";});
+
+  // Search node
+  document.getElementById("search-btn").addEventListener("click",function(){
+    var val=parseInt(document.getElementById("node-search").value);
+    if(isNaN(val)||val<0||val>=NN){alert("Node ID must be 0-"+(NN-1));return;}
+    var n=NET.nodes[val];
+    var comm=curPart[n.id]||0;
+    var col=curPalette[comm%curPalette.length];
+    // Zoom to node
+    var tx=curPos[n.id].x*W, ty=curPos[n.id].y*H;
+    svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity.translate(W/2-tx*2,H/2-ty*2).scale(2));
+    // Flash node
+    nodeG.selectAll("circle").filter(function(m){return m.id===val;})
+      .attr("stroke","#F59E0B").attr("stroke-width",4)
+      .transition().delay(600).duration(300).attr("stroke","#171C28").attr("stroke-width",.9);
+  });
+  document.getElementById("node-search").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("search-btn").click();});
+
+  // Community legend + filter
+  function buildLegend(part,palette){
+    var legEl=document.getElementById("main-legend");
+    legEl.innerHTML="";
+    var uniq=[...new Set(Object.values(part))].sort(function(a,b){return a-b;});
+    filteredComms=null;
+    uniq.forEach(function(ci){
+      var col=palette[ci%palette.length];
+      var sz=Object.values(part).filter(function(v){return v===ci;}).length;
+      var item=document.createElement("div");
+      item.className="cl-item";
+      item.innerHTML='<div class="cl-dot" style="background:'+col+'"></div><span style="color:'+col+';font-weight:600">C'+ci+'</span><span style="color:#64748B;font-size:.6rem">('+sz+')</span>';
+      item.addEventListener("click",function(){
+        if(!filteredComms){filteredComms={};filteredComms[ci]=1;}
+        else if(filteredComms[ci]){delete filteredComms[ci];if(Object.keys(filteredComms).length===0)filteredComms=null;}
+        else{filteredComms[ci]=1;}
+        legEl.querySelectorAll(".cl-item").forEach(function(it){it.classList.remove("faded","active-filter");});
+        if(filteredComms){
+          legEl.querySelectorAll(".cl-item").forEach(function(it,idx){
+            var cval=uniq[idx];
+            it.classList.toggle("active-filter",!!filteredComms[cval]);
+            it.classList.toggle("faded",!filteredComms[cval]);
+          });
+        }
+        applyFilter();
+      });
+      legEl.appendChild(item);
+    });
+  }
+  buildLegend(PARTS.lou,C15);
+})();
+
+// ================================================================
+// SMALL NETWORK CARDS (with tooltip)
+// ================================================================
+function netCard(parentId,pos,part,pal,W,H,labelHTML,btwSize){
+  var parentEl = document.getElementById(parentId);
+  if (!parentEl) {
+    console.warn("Element ID '" + parentId + "' not found. Skipping netCard generation.");
+    return;
+  }
+  
+  var wrap=document.createElement("div");
+  wrap.innerHTML='<div class="nwrap"><svg></svg></div><div class="nl">'+labelHTML+'</div>';
+  parentEl.appendChild(wrap);
+  
+  var container=wrap.querySelector(".nwrap");
+  var svg=d3.select(container).select("svg").attr("width",W).attr("height",H).attr("viewBox","0 0 "+W+" "+H).style("background","transparent");
+  
+  // Zoom on small nets too
+  var g=svg.append("g");
+  var zm=d3.zoom().scaleExtent([.5,8]).on("zoom",function(ev){g.attr("transform",ev.transform);});
+  svg.call(zm);
+
+  var eg=g.append("g");
+  NET.edges.forEach(function(e){
+    if(!pos[e.s]||!pos[e.t])return;
+    eg.append("line").attr("stroke","#475569").attr("stroke-opacity",.45).attr("stroke-width",.8)
+      .attr("x1",pos[e.s].x*W).attr("y1",pos[e.s].y*H).attr("x2",pos[e.t].x*W).attr("y2",pos[e.t].y*H);
+  });
+  NET.nodes.forEach(function(n){
+    if(!pos[n.id])return;
+    var c=part[n.id]||0,col=pal[c%pal.length];
+    var r=btwSize?Math.max(2,1.8+n.btw*14):Math.max(2,1.6+n.deg*.032);
+    g.append("circle").attr("cx",pos[n.id].x*W).attr("cy",pos[n.id].y*H)
+      .attr("r",r).attr("fill",col).attr("stroke","#171C28").attr("stroke-width",.7).attr("opacity",.9)
+      .style("cursor","pointer")
+      .on("mouseover",function(event){
+        showTip(event,'<div style="font-family:DM Mono,monospace;font-size:.66rem;line-height:1.7">'
+          +'<div style="font-size:.74rem;font-weight:700;color:white;margin-bottom:2px">Node '+n.id+'</div>'
+          +'<div style="display:inline-block;background:'+col+';padding:1px 7px;border-radius:20px;color:white;font-size:.58rem;margin-bottom:3px">Comm '+c+'</div><br>'
+          +'Degree: <b style="color:white">'+n.deg+'</b>'+(btwSize?'<br>Betweenness: <b style="color:white">'+n.btw.toFixed(4)+'</b>':'')+'</div>');
+        d3.select(this).attr("stroke","#F8FAFC").attr("stroke-width",2).raise();
+      })
+      .on("mouseout",function(){hideTip();d3.select(this).attr("stroke","#171C28").attr("stroke-width",.7);});
+  });
+}
+
+// Graph 12+13
+netCard("net-3",POS.spring,PARTS.lou,C15,320,255,"<strong>Spring</strong> (FR) Sep=82",false);
+netCard("net-3",POS.shell, PARTS.lou,C15,320,255,"<strong>Shell</strong> (Concentric) Sep=91 *",false);
+netCard("net-3",POS.spectral,PARTS.lou,C15,320,255,"<strong>Spectral</strong> (Laplacian) Sep=80",false);
+
+// Graph 2
+netCard("net-algos",POS.spring,PARTS.lou,C15,220,185,"<strong>Louvain</strong> Q=0.8295",false);
+netCard("net-algos",POS.spring,PARTS.lp,d3.schemeTableau10,220,185,"<strong>Label Prop</strong> Q=0.8182",false);
+netCard("net-algos",POS.spring,PARTS.sp,C15,220,185,"<strong>Spectral</strong> Q=0.6991",false);
+netCard("net-algos",POS.spring,PARTS.gn,C15,220,185,"<strong>Girvan-Newman</strong> Q=0.385",false);
+netCard("net-algos",POS.spring,PARTS.kc,d3.schemeTableau10,220,185,"<strong>K-Clique</strong> Q=N/A",false);
+
+// All 7 layouts
+var all7=[{pos:POS.spring,lb:"<strong>Spring</strong> Sep=82"},{pos:POS.circular,lb:"<strong>Circular</strong> Sep=54"},{pos:POS.kk,lb:"<strong>KK</strong> Sep=78"},{pos:POS.spectral,lb:"<strong>Spectral</strong> Sep=80"},{pos:POS.shell,lb:"<strong>Shell *</strong> Sep=91"},{pos:POS.random,lb:"<strong>Random</strong> Sep=12"},{pos:POS.multi,lb:"<strong>Multipartite</strong> Sep=72"}];
+all7.forEach(function(a){netCard("net-7",a.pos,PARTS.lou,C15,265,205,a.lb,false);});
+
+// FD 6 variants
+var fd6=[{pos:POS.spring,lb:"<strong>FR-Default</strong> iter=50"},{pos:POS.high,lb:"<strong>FR-HighIter</strong> iter=300"},{pos:POS.sparse,lb:"<strong>FR-SparseK *</strong> k=3/sqrt(n)"},{pos:POS.dense,lb:"<strong>FR-DenseK</strong> k=0.5/sqrt(n)"},{pos:POS.kk,lb:"<strong>Kamada-Kawai</strong>"},{pos:POS.arf,lb:"<strong>ARF</strong> Attr-Repulsion"}];
+fd6.forEach(function(a){netCard("net-fd6",a.pos,PARTS.lou,C15,350,285,a.lb,false);});
+
+// FD5 deep compare
+netCard("net-fdc",POS.spring,PARTS.lou,C15,440,330,"<strong>FR-Default</strong> -- node size = betweenness",true);
+netCard("net-fdc",POS.kk,    PARTS.lou,C15,440,330,"<strong>Kamada-Kawai</strong> -- node size = betweenness",true);
+
+// ================================================================
+// VEGA-LITE CHARTS
+// ================================================================
+var CFG={font:"DM Sans",axis:{labelFont:"DM Mono",labelFontSize:10,labelColor:"#94A3B8",titleFont:"DM Sans",titleFontSize:12,titleColor:"#F1F5F9",gridColor:"#2A3241",tickColor:"#2A3241",domainColor:"#2A3241"},legend:{labelFont:"DM Sans",labelFontSize:12,titleFont:"DM Mono",titleFontSize:11,titleColor:"#F1F5F9",labelColor:"#94A3B8"},view:{stroke:null},background:"transparent"};
+var OPT={actions:false,renderer:"svg"};
+
+function barC(data,xf,yf,cols,yl,fmt){
+  return {$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:210,data:{values:data},
+    layer:[
+      {mark:{type:"bar",cornerRadiusTopLeft:4,cornerRadiusTopRight:4},
+       encoding:{x:{field:xf,type:"nominal",sort:null,axis:{labelAngle:-30,labelLimit:120,title:null}},
+         y:{field:yf,type:"quantitative",axis:{title:yl,format:fmt||""}},
+         color:{field:xf,type:"nominal",scale:{range:cols},legend:null},
+         tooltip:[{field:xf},{field:yf,format:fmt||""}]}},
+      {mark:{type:"text",dy:-8,fontSize:10,fontWeight:600,font:"DM Mono"},
+       encoding:{x:{field:xf,type:"nominal",sort:null},y:{field:yf,type:"quantitative"},text:{field:yf,format:fmt||""},color:{value:"#F1F5F9"}}}
+    ]};
+}
+vegaEmbed("#c-mod",barC(algoData.filter(function(d){return d.q!==null;}),"a","q",ACOL,"Modularity Q",".4f"),OPT);
+vegaEmbed("#c-cov",barC(algoData,"a","cov",ACOL,"Coverage",".4f"),OPT);
+vegaEmbed("#c-com",barC(algoData,"a","k",ACOL,"Communities","d"),OPT);
+vegaEmbed("#c-rt", barC(algoData,"a","rt",ACOL,"Seconds",".1f"),OPT);
+
+vegaEmbed("#c-deg",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:310,
+  layer:[
+    {data:{values:degData},mark:{type:"point",size:60,filled:true,opacity:.85,color:"#3B82F6"},
+     encoding:{x:{field:"k",type:"quantitative",scale:{type:"log"},axis:{title:"Degree k (log)"}},y:{field:"p",type:"quantitative",scale:{type:"log"},axis:{title:"Count P(k) (log)"}},tooltip:[{field:"k",title:"Degree"},{field:"p",title:"Count"}]}},
+    {data:{values:pwFit},mark:{type:"line",strokeWidth:2.2,strokeDash:[6,3],color:"#EF4444",opacity:.85},
+     encoding:{x:{field:"k",type:"quantitative",scale:{type:"log"}},y:{field:"f",type:"quantitative",scale:{type:"log"}},text:{field:"l"},color:{value:"#EF4444"}}}
+  ]},OPT);
+
+// Centrality with brush selection
+function centSpec(xf,yf,xt,yt){
+  var sel={name:"brush",select:{type:"interval"}};
+  return {$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:240,data:{values:centData},
+    params:[sel],
+    mark:{type:"point",filled:true,size:35,opacity:.65},
+    encoding:{x:{field:xf,type:"quantitative",axis:{title:xt}},y:{field:yf,type:"quantitative",axis:{title:yt}},
+      color:{condition:{param:"brush",field:"degree",type:"quantitative",scale:{scheme:"blues"}},value:"#475569"},
+      opacity:{condition:{param:"brush",value:.95},value:.25},
+      tooltip:[{field:"degree",title:"Degree"},{field:xf,title:xt,format:".5f"},{field:yf,title:yt,format:".5f"}]}};
+}
+vegaEmbed("#c-c1",centSpec("degree","betweenness","Degree","Betweenness"),OPT);
+vegaEmbed("#c-c2",centSpec("degree","closeness","Degree","Closeness"),OPT);
+vegaEmbed("#c-c3",centSpec("betweenness","pagerank","Betweenness","PageRank"),OPT);
+vegaEmbed("#c-c4",centSpec("closeness","eigenvector","Closeness","Eigenvector"),OPT);
+
+vegaEmbed("#c-hubs",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:450,data:{values:hubData},
+  mark:{type:"bar",cornerRadiusTopRight:4,cornerRadiusBottomRight:4},
+  encoding:{y:{field:"nd",type:"nominal",sort:"-x",axis:{title:null,labelFont:"DM Mono",labelFontSize:11}},
+    x:{field:"b",type:"quantitative",axis:{title:"Betweenness",format:".3f"}},
+    color:{field:"b",type:"quantitative",scale:{scheme:"blues"},legend:null},
+    tooltip:[{field:"nd",title:"Node"},{field:"b",title:"Betweenness",format:".5f"},{field:"d",title:"Degree"}]}},OPT);
+
+vegaEmbed("#c-heat",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:390,data:{values:heatData},mark:{type:"rect"},
+  encoding:{x:{field:"s",type:"nominal",title:"Community",axis:{labelAngle:-40,labelFontSize:9}},y:{field:"t",type:"nominal",title:null,sort:null,axis:{labelFontSize:9}},
+    color:{field:"v",type:"quantitative",scale:{scheme:"orangered"},legend:{title:"Density"}},
+    tooltip:[{field:"s",title:"From"},{field:"t",title:"To"},{field:"v",title:"Density",format:".5f"}]}},OPT);
+
+function renderCsChart(id){
+  var cs=csData.find(function(d){return d.id===id;});
+  vegaEmbed("#"+id,{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:215,data:{values:cs.data},
+    mark:{type:"bar",cornerRadiusTopLeft:3,cornerRadiusTopRight:3,color:"#3B82F6"},
+    encoding:{x:{field:"r",type:"ordinal",axis:{title:"Community Rank",labelFont:"DM Mono"}},y:{field:"s",type:"quantitative",axis:{title:"Nodes"}},tooltip:[{field:"r",title:"Rank"},{field:"s",title:"Nodes"}]}},OPT);
+}
+var csRendered={"cs0":true};
+renderCsChart("cs0");
+document.querySelectorAll("#cstabs .tab").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    document.querySelectorAll("#cstabs .tab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on");
+    document.querySelectorAll(".csc").forEach(function(c){c.style.display="none";});
+    var id=btn.dataset.t;
+    document.getElementById(id).style.display="block";
+    if(!csRendered[id]){csRendered[id]=true;renderCsChart(id);}
+  });
+});
+
+vegaEmbed("#c-sep",  barC(layData,"n","sep",  LCOL,"Separation Score","d"),OPT);
+vegaEmbed("#c-cross",barC(layData,"n","cross",LCOL,"Crossings Score",  "d"),OPT);
+vegaEmbed("#c-scat",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:360,data:{values:layData},
+  layer:[
+    {mark:{type:"rule",strokeDash:[5,4],strokeWidth:1,color:"#334155"},encoding:{x:{datum:50}}},
+    {mark:{type:"rule",strokeDash:[5,4],strokeWidth:1,color:"#334155"},encoding:{y:{datum:50}}},
+    {mark:{type:"point",filled:true,size:200},encoding:{x:{field:"speed",type:"quantitative",scale:{domain:[0,110]},axis:{title:"Speed Score"}},y:{field:"sep",type:"quantitative",scale:{domain:[0,110]},axis:{title:"Separation Score"}},color:{field:"n",type:"nominal",scale:{range:LCOL},legend:{title:"Layout",orient:"right"}},tooltip:[{field:"n",title:"Layout"},{field:"speed",title:"Speed"},{field:"sep",title:"Separation"},{field:"cross",title:"Crossings"}]}},
+    {mark:{type:"text",dy:-13,fontSize:10.5,fontWeight:500},encoding:{x:{field:"speed",type:"quantitative"},y:{field:"sep",type:"quantitative"},text:{field:"n"},color:{field:"n",type:"nominal",scale:{range:LCOL},legend:null}}}
+  ]},OPT);
+vegaEmbed("#c-lxa",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:295,data:{values:lxaData},mark:{type:"bar"},
+  encoding:{x:{field:"alg",type:"nominal",sort:null,axis:{title:null,labelAngle:-20}},y:{field:"sep",type:"quantitative",scale:{domain:[0,105]},axis:{title:"Separation /100"}},
+    color:{field:"lay",type:"nominal",scale:{range:LCOL},legend:{title:"Layout"}},xOffset:{field:"lay",type:"nominal"},
+    tooltip:[{field:"lay",title:"Layout"},{field:"alg",title:"Algo"},{field:"sep",title:"Separation"}]}},OPT);
+
+vegaEmbed("#c-fds",barC(fdData,"n","sep",FCOL,"Sep Ratio",".3f"),OPT);
+vegaEmbed("#c-fdu",barC(fdData,"n","uni",FCOL,"Uniformity",".3f"),OPT);
+vegaEmbed("#c-fdp",barC(fdData,"n","spr",FCOL,"Spread",".3f"),OPT);
+vegaEmbed("#c-conv",{$schema:"https://vega.github.io/schema/vega-lite/v5.json",config:CFG,width:"container",height:310,data:{values:convData},
+  layer:[
+    {mark:{type:"rule",strokeDash:[5,4],strokeWidth:1,color:"#334155"},encoding:{x:{datum:50}}},
+    {mark:{type:"rule",strokeDash:[5,4],strokeWidth:1,color:"#334155"},encoding:{x:{datum:150}}},
+    {mark:{type:"line",strokeWidth:2.5,point:{filled:true,size:55}},
+     encoding:{x:{field:"it",type:"quantitative",axis:{title:"FR Iterations"}},y:{field:"s",type:"quantitative",scale:{domain:[.25,1]},axis:{title:"Separation Ratio"}},
+       color:{field:"v",type:"nominal",scale:{range:["#3B82F6","#10B981","#EF4444"]},legend:{title:"Variant",orient:"right"}},
+       tooltip:[{field:"v",title:"Variant"},{field:"it",title:"Iterations"},{field:"s",title:"Sep Ratio",format:".4f"}]}}
+  ]},OPT);
+
+// ================================================================
+// RADAR CHARTS
+// ================================================================
+function drawRadar(svgId,labels,series,cx,cy,R,W,H){
+  var svg=d3.select("#"+svgId);svg.selectAll("*").remove();
+  var n=labels.length;
+  var angles=labels.map(function(_,i){return i/n*2*Math.PI-Math.PI/2;});
+  for(var lv=1;lv<=5;lv++){
+    var pts=angles.map(function(a){return {x:cx+R*lv/5*Math.cos(a),y:cy+R*lv/5*Math.sin(a)};});
+    svg.append("polygon").attr("points",pts.map(function(p){return p.x+","+p.y;}).join(" ")).attr("fill","none").attr("stroke","#334155").attr("stroke-width",.8);
+  }
+  angles.forEach(function(a,i){
+    svg.append("line").attr("x1",cx).attr("y1",cy).attr("x2",cx+R*Math.cos(a)).attr("y2",cy+R*Math.sin(a)).attr("stroke","#334155").attr("stroke-width",.8);
+    var lx=cx+(R+24)*Math.cos(a),ly=cy+(R+24)*Math.sin(a);
+    var parts=labels[i].split(" ");
+    var t=svg.append("text").attr("x",lx).attr("y",ly).attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",9).attr("font-family","DM Mono").attr("fill","#94A3B8");
+    parts.forEach(function(p,pi){t.append("tspan").attr("x",lx).attr("dy",pi===0?-(parts.length-1)*6:12).text(p);});
+  });
+  series.forEach(function(s){
+    var pts=angles.map(function(a,i){return {x:cx+R*(s.v[i]/100)*Math.cos(a),y:cy+R*(s.v[i]/100)*Math.sin(a)};});
+    var poly=svg.append("polygon").attr("points",pts.map(function(p){return p.x+","+p.y;}).join(" ")).attr("fill",s.c).attr("fill-opacity",.15).attr("stroke",s.c).attr("stroke-width",1.8).style("cursor","pointer");
+    pts.forEach(function(p){svg.append("circle").attr("cx",p.x).attr("cy",p.y).attr("r",2.8).attr("fill",s.c);});
+    // hover highlight
+    poly.on("mouseover",function(){d3.select(this).attr("fill-opacity",.45).attr("stroke-width",3);})
+        .on("mouseout",function(){d3.select(this).attr("fill-opacity",.15).attr("stroke-width",1.8);});
+  });
+  var lx0=W-118,ly0=16;
+  series.forEach(function(s,i){
+    svg.append("rect").attr("x",lx0).attr("y",ly0+i*17).attr("width",9).attr("height",9).attr("fill",s.c).attr("rx",2);
+    svg.append("text").attr("x",lx0+13).attr("y",ly0+i*17+8).attr("font-size",9).attr("font-family","DM Sans").attr("fill","#F1F5F9").text(s.name);
+  });
+}
+var commSeries=[{name:"C0 (n=400)",v:[100,87,72,68,95],c:"#3B82F6"},{name:"C1 (n=350)",v:[88,82,88,54,81],c:"#EF4444"},{name:"C2 (n=300)",v:[75,100,65,100,72],c:"#10B981"},{name:"C3 (n=280)",v:[70,76,100,72,68],c:"#F59E0B"},{name:"C4 (n=250)",v:[63,68,58,82,62],c:"#8B5CF6"},{name:"C5 (n=220)",v:[55,60,54,62,55],c:"#14B8A6"}];
+drawRadar("r-comm",["Size","Avg Degree","Avg Clustering","Avg Betweenness","Density"],commSeries,190,195,125,560,380);
+
+var laySeries=layData.map(function(d,i){return {name:d.n,v:[d.sep,d.read,d.speed,d.scale,100-d.cross],c:LCOL[i]};});
+drawRadar("r-lay",["Community Sep","Readability","Speed","Scalability","Low Crossings"],laySeries,240,215,138,660,420);
+
+function n100(arr){var lo=Math.min.apply(null,arr),hi=Math.max.apply(null,arr);return arr.map(function(v){return hi===lo?50:+(100*(v-lo)/(hi-lo)).toFixed(1);});}
+var sepN=n100(fdData.map(function(d){return d.sep;}));
+var uniN=n100(fdData.map(function(d){return d.uni;}));
+var sprN=n100(fdData.map(function(d){return d.spr;}));
+var fdSeries=fdData.map(function(d,i){return {name:d.n,v:[sepN[i],uniN[i],sprN[i],d.speed,d.scale],c:FCOL[i]};});
+drawRadar("r-fd",["Comm Sep","Edge Unif","Spread","Speed","Scalability"],fdSeries,240,215,138,660,420);
+
+// ================================================================
+// TABLES
+// ================================================================
+var ltb=document.getElementById("ltb");
+var mxSep=Math.max.apply(null,layData.map(function(d){return d.sep;}));
+var mnCr=Math.min.apply(null,layData.map(function(d){return d.cross;}));
+layData.forEach(function(d){ltb.innerHTML+='<tr><td><strong>'+d.n+'</strong></td><td>'+d.type+'</td><td style="font-family:DM Mono,monospace;font-size:.68rem">'+d.cpx+'</td><td class="num">'+(d.sep===mxSep?'<span class="pill best">'+d.sep+'/100 *</span>':d.sep+'/100')+'</td><td class="num">'+(d.cross===mnCr?'<span class="pill best">'+d.cross+'/100 *</span>':d.cross+'/100')+'</td><td class="num">'+d.read+'/100</td><td class="num">'+d.scale+'/100</td><td>'+d.bf+'</td></tr>';});
+
+var fdt=document.getElementById("fdt");
+var mxFS=Math.max.apply(null,fdData.map(function(d){return d.sep;}));
+var mxFU=Math.max.apply(null,fdData.map(function(d){return d.uni;}));
+var mxFP=Math.max.apply(null,fdData.map(function(d){return d.spr;}));
+var mxFSp=Math.max.apply(null,fdData.map(function(d){return d.speed;}));
+fdData.forEach(function(d){fdt.innerHTML+='<tr><td><strong>'+d.n+'</strong></td><td>'+d.cls+'</td><td style="font-family:DM Mono,monospace;font-size:.68rem">'+d.cpx+'</td><td class="num">'+(d.sep===mxFS?'<span class="pill best">'+d.sep.toFixed(2)+' *</span>':d.sep.toFixed(2))+'</td><td class="num">'+(d.uni===mxFU?'<span class="pill best">'+d.uni.toFixed(2)+' *</span>':d.uni.toFixed(2))+'</td><td class="num">'+(d.spr===mxFP?'<span class="pill best">'+d.spr.toFixed(2)+' *</span>':d.spr.toFixed(2))+'</td><td class="num">'+(d.speed===mxFSp?'<span class="pill best">'+d.speed+'/100 *</span>':d.speed+'/100')+'</td><td>'+d.bf+'</td></tr>';});
+
+// ================================================================
+// NAV SCROLL
+// ================================================================
+document.querySelectorAll("section[id]").forEach(function(sec){
+  new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting)document.querySelectorAll("nav a").forEach(function(a){a.classList.toggle("active",a.getAttribute("href")==="#"+e.target.id);});});},{threshold:.25}).observe(sec);
+});
+
+
+// ============================================================
+// STATS BAR UPDATE
+// ============================================================
+function updateStatsBar(visCount) {
+  document.getElementById('sb-nodes').textContent = NN;
+  document.getElementById('sb-edges').textContent = NET.edges.length;
+  document.getElementById('sb-visible').textContent = visCount !== undefined ? visCount : NN;
+  var degs = NET.nodes.map(function(n){return n.deg;});
+  document.getElementById('sb-mindeg').textContent = Math.min.apply(null,degs);
+  document.getElementById('sb-maxdeg').textContent = Math.max.apply(null,degs);
+}
+updateStatsBar();
+
+// ============================================================
+// DEGREE SLIDER FILTER
+// ============================================================
+var minDegFilter = 0;
+var edgesVisible = true;
+
+document.getElementById('deg-slider').addEventListener('input', function() {
+  minDegFilter = parseInt(this.value);
+  document.getElementById('deg-val').textContent = minDegFilter;
+  applyDegreeFilter();
+});
+
+function applyDegreeFilter() {
+  var mainNodeG = document.querySelector('#main-svg g:last-child');
+  // We reference the outer closure variables from main net
+  var visCount = 0;
+  d3.select('#main-svg').selectAll('circle').each(function(n) {
+    if (!n) return;
+    var show = n.deg >= minDegFilter;
+    if (show) visCount++;
+    d3.select(this).attr('opacity', show ? 1 : 0.05);
+  });
+  updateStatsBar(visCount);
+}
+
+// ============================================================
+// EDGE TOGGLE
+// ============================================================
+document.getElementById('edge-toggle').addEventListener('click', function() {
+  edgesVisible = !edgesVisible;
+  this.textContent = edgesVisible ? 'Edges ON' : 'Edges OFF';
+  this.classList.toggle('on', edgesVisible);
+  d3.select('#main-svg').selectAll('line')
+    .transition().duration(300)
+    .attr('stroke-opacity', edgesVisible ? 0.45 : 0);
+});
+
+// ============================================================
+// SHORTEST PATH (BFS)
+// ============================================================
+var pathMode = false;
+var pathNodes = [];
+
+function bfs(startId, endId) {
+  var adj = {};
+  NET.nodes.forEach(function(n) { adj[n.id] = []; });
+  NET.edges.forEach(function(e) { adj[e.s].push(e.t); adj[e.t].push(e.s); });
+  var visited = {}, prev = {}, queue = [startId];
+  visited[startId] = true;
+  while (queue.length) {
+    var cur = queue.shift();
+    if (cur === endId) break;
+    (adj[cur] || []).forEach(function(nb) {
+      if (!visited[nb]) { visited[nb] = true; prev[nb] = cur; queue.push(nb); }
+    });
+  }
+  var path = [], cur = endId;
+  while (cur !== undefined) { path.unshift(cur); cur = prev[cur]; }
+  return path[0] === startId ? path : null;
+}
+
+document.getElementById('path-btn').addEventListener('click', function() {
+  pathMode = !pathMode;
+  pathNodes = [];
+  this.classList.toggle('on', pathMode);
+  this.textContent = pathMode ? 'Pick Node 1...' : 'Shortest Path';
+  if (!pathMode) {
+    // Clear path highlight
+    d3.select('#main-svg').selectAll('circle').attr('stroke','#171C28').attr('stroke-width',0.9);
+    d3.select('#main-svg').selectAll('line').attr('stroke','#475569').attr('stroke-opacity',0.45).attr('stroke-width',0.9);
+    d3.select('#main-svg').selectAll('.path-label').remove();
+  }
+});
+
+// Override click on nodes for path mode — inject into existing circle click
+d3.select('#main-svg').on('click.path', function(event) {
+  if (!pathMode) return;
+  var target = event.target;
+  if (target.tagName !== 'circle' && target.tagName !== 'CIRCLE') return;
+  var nd = d3.select(target).datum();
+  if (!nd) return;
+  event.stopPropagation();
+  pathNodes.push(nd.id);
+  if (pathNodes.length === 1) {
+    document.getElementById('path-btn').textContent = 'Pick Node 2...';
+    d3.select(target).attr('stroke','#F59E0B').attr('stroke-width',3.5);
+  } else if (pathNodes.length >= 2) {
+    var path = bfs(pathNodes[0], pathNodes[1]);
+    d3.select('#main-svg').selectAll('.path-label').remove();
+    if (!path || path.length < 2) {
+      alert('No path found between nodes ' + pathNodes[0] + ' and ' + pathNodes[1]);
+    } else {
+      var pathSet = {};
+      path.forEach(function(id) { pathSet[id] = true; });
+      var edgeSet = {};
+      for (var i = 0; i < path.length - 1; i++) {
+        edgeSet[Math.min(path[i],path[i+1])+'-'+Math.max(path[i],path[i+1])] = true;
+      }
+      // Dim non-path elements
+      d3.select('#main-svg').selectAll('circle')
+        .attr('stroke', function(n) { return n && pathSet[n.id] ? '#F59E0B' : '#171C28'; })
+        .attr('stroke-width', function(n) { return n && pathSet[n.id] ? 3 : 0.9; })
+        .attr('opacity', function(n) { return n && pathSet[n.id] ? 1 : 0.15; });
+      d3.select('#main-svg').selectAll('line')
+        .attr('stroke', function(e) {
+          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
+          return edgeSet[k] ? '#F59E0B' : '#475569';
+        })
+        .attr('stroke-opacity', function(e) {
+          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
+          return edgeSet[k] ? 1 : 0.06;
+        })
+        .attr('stroke-width', function(e) {
+          var k = Math.min(e.s,e.t)+'-'+Math.max(e.s,e.t);
+          return edgeSet[k] ? 2.5 : 0.9;
+        });
+      // Show path length label
+      var pos = POS[document.querySelector('#layout-btns .nbtn.on') ? document.querySelector('#layout-btns .nbtn.on').dataset.layout : 'spring'] || POS.spring;
+      var W2 = document.getElementById('main-net-wrap').clientWidth || 900;
+      var H2 = 520;
+      d3.select('#main-svg').append('text').attr('class','path-label')
+        .attr('x', W2/2).attr('y', 22)
+        .attr('text-anchor','middle').attr('font-family','DM Mono').attr('font-size',12).attr('fill','#F59E0B').attr('font-weight','700')
+        .text('Path length: ' + (path.length-1) + ' hops  (' + path.slice(0,5).join(' -> ') + (path.length>5?'...':'') + ')');
+    }
+    pathNodes = [];
+    pathMode = false;
+    document.getElementById('path-btn').classList.remove('on');
+    document.getElementById('path-btn').textContent = 'Shortest Path';
+  }
+});
+
+// ============================================================
+// LIVE D3 FORCE SIMULATION TOGGLE
+// ============================================================
+var simRunning = false;
+var simulation = null;
+
+document.getElementById('sim-btn').addEventListener('click', function() {
+  simRunning = !simRunning;
+  this.classList.toggle('on', simRunning);
+  this.textContent = simRunning ? 'Stop Sim' : 'Live Sim';
+
+  if (simRunning) {
+    var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+    // Build node/link objects for d3 force
+    var fnodes = NET.nodes.map(function(n) {
+      return { id: n.id, x: POS.spring[n.id].x * W2, y: POS.spring[n.id].y * H2, deg: n.deg, c: n.c, btw: n.btw };
+    });
+    var flinks = NET.edges.map(function(e) { return { source: e.s, target: e.t }; });
+
+    simulation = d3.forceSimulation(fnodes)
+      .force('link', d3.forceLink(flinks).id(function(d){return d.id;}).distance(28).strength(0.6))
+      .force('charge', d3.forceManyBody().strength(-55))
+      .force('center', d3.forceCenter(W2/2, H2/2))
+      .force('collision', d3.forceCollide(7))
+      .alphaDecay(0.015)
+      .on('tick', function() {
+        var curPart2 = PARTS[document.querySelector('#algo-btns .nbtn.on2') ? document.querySelector('#algo-btns .nbtn.on2').dataset.algo : 'lou'] || PARTS.lou;
+        var palette2 = C15;
+        d3.select('#main-svg').selectAll('line')
+          .attr('x1', function(e) { var n = typeof e.source === 'object' ? e.source : fnodes[e.source]; return n ? n.x : 0; })
+          .attr('y1', function(e) { var n = typeof e.source === 'object' ? e.source : fnodes[e.source]; return n ? n.y : 0; })
+          .attr('x2', function(e) { var n = typeof e.target === 'object' ? e.target : fnodes[e.target]; return n ? n.x : 0; })
+          .attr('y2', function(e) { var n = typeof e.target === 'object' ? e.target : fnodes[e.target]; return n ? n.y : 0; });
+        d3.select('#main-svg').selectAll('circle')
+          .attr('cx', function(n) { var fn = fnodes[n.id]; return fn ? fn.x : 0; })
+          .attr('cy', function(n) { var fn = fnodes[n.id]; return fn ? fn.y : 0; });
+      });
+
+    // Make nodes draggable during simulation
+    d3.select('#main-svg').selectAll('circle').call(
+      d3.drag()
+        .on('start', function(event, n) {
+          if (simulation) { simulation.alphaTarget(0.3).restart(); }
+          var fn = fnodes[n.id]; if (fn) { fn.fx = fn.x; fn.fy = fn.y; }
+        })
+        .on('drag', function(event, n) {
+          var fn = fnodes[n.id]; if (fn) { fn.fx = event.x; fn.fy = event.y; }
+        })
+        .on('end', function(event, n) {
+          if (simulation) simulation.alphaTarget(0);
+          var fn = fnodes[n.id]; if (fn) { fn.fx = null; fn.fy = null; }
+        })
+    );
+  } else {
+    if (simulation) { simulation.stop(); simulation = null; }
+  }
+});
+
+// ============================================================
+// DOWNLOAD SVG
+// ============================================================
+document.getElementById('dl-btn').addEventListener('click', function() {
+  var svgEl = document.getElementById('main-svg');
+  var serializer = new XMLSerializer();
+  var source = serializer.serializeToString(svgEl);
+  source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+  var url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'network_graph.svg'; a.click();
+});
+
+// ============================================================
+// ANIMATED CONVERGENCE CHART
+// ============================================================
+var convIter = 7;
+var convPlaying = false;
+var convTimer = null;
+var ivals2 = [10,25,50,75,100,150,200,300];
+
+function updateConvChart(maxIdx) {
+  var subset = convData.filter(function(d) { return ivals2.indexOf(d.it) <= maxIdx; });
+  vegaEmbed('#c-conv', {
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    config: CFG, width: 'container', height: 310,
+    data: {values: subset},
+    layer: [
+      {mark:{type:'rule',strokeDash:[5,4],strokeWidth:1,color:'#334155'},encoding:{x:{datum:50}}},
+      {mark:{type:'rule',strokeDash:[5,4],strokeWidth:1,color:'#334155'},encoding:{x:{datum:150}}},
+      {mark:{type:'line',strokeWidth:2.5,point:{filled:true,size:55}},
+       encoding:{x:{field:'it',type:'quantitative',scale:{domain:[0,320]},axis:{title:'FR Iterations'}},
+         y:{field:'s',type:'quantitative',scale:{domain:[.25,1]},axis:{title:'Separation Ratio'}},
+         color:{field:'v',type:'nominal',scale:{range:['#3B82F6','#10B981','#EF4444']},legend:{title:'Variant',orient:'right'}},
+         tooltip:[{field:'v',title:'Variant'},{field:'it',title:'Iterations'},{field:'s',title:'Sep Ratio',format:'.4f'}]}}
+    ]
+  }, OPT);
+  document.getElementById('conv-iter-label').textContent = ivals2[maxIdx];
+}
+
+document.getElementById('conv-slider').addEventListener('input', function() {
+  convIter = parseInt(this.value);
+  updateConvChart(convIter);
+});
+
+document.getElementById('conv-play').addEventListener('click', function() {
+  convPlaying = !convPlaying;
+  this.textContent = convPlaying ? '⏸ Pause' : '▶ Play';
+  if (convPlaying) {
+    convIter = 0;
+    document.getElementById('conv-slider').value = 0;
+    updateConvChart(0);
+    convTimer = setInterval(function() {
+      convIter++;
+      document.getElementById('conv-slider').value = convIter;
+      updateConvChart(convIter);
+      if (convIter >= 7) {
+        clearInterval(convTimer);
+        convPlaying = false;
+        document.getElementById('conv-play').textContent = '▶ Play';
+      }
+    }, 700);
+  } else {
+    clearInterval(convTimer);
+  }
+});
+
+// Initialize convergence chart
+updateConvChart(7);
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'e' || e.key === 'E') document.getElementById('edge-toggle').click();
+  if (e.key === 'r' || e.key === 'R') {
+    // Reset zoom
+    d3.select('#main-svg').transition().duration(400).call(
+      d3.zoom().transform, d3.zoomIdentity
+    );
+  }
+  if (e.key === 'Escape') {
+    if (pathMode) document.getElementById('path-btn').click();
+    document.getElementById('info-panel').style.display = 'none';
+  }
+});
+
+// ============================================================
+// KEYBOARD SHORTCUT HINT
+// ============================================================
+var kbHint = document.createElement('div');
+kbHint.style = 'font-family:DM Mono,monospace;font-size:.56rem;color:#64748B;margin-top:.5rem;';
+kbHint.innerHTML = '&#9109; Keyboard: <kbd style="background:#1E2536;padding:1px 5px;border-radius:3px;border:1px solid #2A3241">E</kbd> toggle edges &nbsp; <kbd style="background:#1E2536;padding:1px 5px;border-radius:3px;border:1px solid #2A3241">R</kbd> reset zoom &nbsp; <kbd style="background:#1E2536;padding:1px 5px;border-radius:3px;border:1px solid #2A3241">Esc</kbd> close panel / cancel path';
+document.getElementById('main-legend').after(kbHint);
+
+
+// ================================================================
+// MINIMAP
+// ================================================================
+(function(){
+  var mm = d3.select('#minimap-svg');
+  var MW = 130, MH = 90;
+  mm.attr('viewBox','0 0 '+MW+' '+MH);
+  var mainW = document.getElementById('main-net-wrap').clientWidth || 900, mainH = 520;
+  var sx = MW/mainW, sy = MH/mainH;
+
+  // Draw minimap nodes (tiny dots)
+  var mmg = mm.append('g');
+  NET.nodes.forEach(function(n) {
+    var pos = POS.spring[n.id];
+    if (!pos) return;
+    mmg.append('circle')
+      .attr('class','mm-node').attr('data-id',n.id)
+      .attr('cx', pos.x * mainW * sx).attr('cy', pos.y * mainH * sy)
+      .attr('r', 1.4).attr('fill', C15[(NET.part[n.id]||0) % C15.length]).attr('opacity',.8);
+  });
+
+  // Viewport rect
+  var vr = mm.append('rect').attr('id','minimap-viewport').attr('x',0).attr('y',0).attr('width',MW).attr('height',MH);
+
+  // Update minimap on main zoom
+  d3.select('#main-svg').on('zoom.minimap', null);
+  var origZoom = d3.zoom().scaleExtent([.4,10]).on('zoom', function(event){
+    d3.select('#main-svg').select('g').attr('transform', event.transform);
+    // Update viewport rect
+    var t = event.transform;
+    var vx = -t.x / t.k * sx, vy = -t.y / t.k * sy;
+    var vw = mainW / t.k * sx, vh = mainH / t.k * sy;
+    vr.attr('x', Math.max(0,vx)).attr('y', Math.max(0,vy))
+      .attr('width', Math.min(MW,vw)).attr('height', Math.min(MH,vh));
+  });
+  // Reassign zoom with minimap update
+  d3.select('#main-svg').on('.zoom', null).call(origZoom);
+  d3.select('#main-svg').on('dblclick.zoom', function(){
+    d3.select('#main-svg').transition().duration(500).call(origZoom.transform, d3.zoomIdentity);
+  });
+})();
+
+// ================================================================
+// LASSO SELECTION
+// ================================================================
+(function(){
+  var lassoMode = false;
+  var lassoPoints = [];
+  var lassoPath = null;
+  var lassoActive = false;
+
+  document.getElementById('lasso-btn').addEventListener('click', function(){
+    lassoMode = !lassoMode;
+    this.classList.toggle('on', lassoMode);
+    this.textContent = lassoMode ? 'Lasso ON' : 'Lasso';
+    if (!lassoMode) {
+      if (lassoPath) { lassoPath.remove(); lassoPath = null; }
+      document.getElementById('lasso-stats').style.display = 'none';
+      d3.select('#main-svg').selectAll('circle').attr('stroke','#171C28').attr('stroke-width',0.9);
+    }
+  });
+
+  function ptInPolygon(pt, poly) {
+    var x = pt[0], y = pt[1], inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      var intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  d3.select('#main-svg')
+    .on('mousedown.lasso', function(event) {
+      if (!lassoMode) return;
+      if (event.target.tagName === 'circle' || event.target.tagName === 'CIRCLE') return;
+      lassoActive = true;
+      lassoPoints = [];
+      if (lassoPath) lassoPath.remove();
+      var t = d3.select('#main-svg g').attr('transform');
+      var transform = d3.zoomTransform(document.getElementById('main-svg'));
+      var coords = d3.pointer(event, document.getElementById('main-svg'));
+      lassoPoints.push(coords);
+      lassoPath = d3.select('#main-svg').append('path').attr('class','lasso-path');
+    })
+    .on('mousemove.lasso', function(event) {
+      if (!lassoMode || !lassoActive) return;
+      var coords = d3.pointer(event, document.getElementById('main-svg'));
+      lassoPoints.push(coords);
+      if (lassoPath) lassoPath.attr('d', 'M' + lassoPoints.map(function(p){return p[0]+','+p[1];}).join('L') + 'Z');
+    })
+    .on('mouseup.lasso', function(event) {
+      if (!lassoMode || !lassoActive) return;
+      lassoActive = false;
+      if (lassoPoints.length < 3) return;
+
+      // Find current transform
+      var transform = d3.zoomTransform(document.getElementById('main-svg'));
+      var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+
+      // Get current layout
+      var curLayoutKey = 'spring';
+      document.querySelectorAll('#layout-btns .nbtn').forEach(function(b){ if(b.classList.contains('on')) curLayoutKey = b.dataset.layout; });
+      var posMap2 = {spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+      var curPosNow = posMap2[curLayoutKey] || POS.spring;
+
+      var selected = [];
+      NET.nodes.forEach(function(n) {
+        var pos = curPosNow[n.id];
+        if (!pos) return;
+        // Apply transform
+        var px = transform.applyX(pos.x * W2);
+        var py = transform.applyY(pos.y * H2);
+        if (ptInPolygon([px, py], lassoPoints)) selected.push(n);
+      });
+
+      // Highlight selected
+      var selSet = {};
+      selected.forEach(function(n){ selSet[n.id] = true; });
+      d3.select('#main-svg').selectAll('circle')
+        .attr('stroke', function(n){ return n && selSet[n.id] ? '#F59E0B' : '#171C28'; })
+        .attr('stroke-width', function(n){ return n && selSet[n.id] ? 2.5 : 0.9; })
+        .attr('opacity', function(n){ return n && selSet[n.id] ? 1 : 0.2; });
+
+      // Show stats
+      if (selected.length > 0) {
+        var avgDeg = selected.reduce(function(s,n){return s+n.deg;},0) / selected.length;
+        var commCounts = {};
+        selected.forEach(function(n){ var c = NET.part[n.id]||0; commCounts[c] = (commCounts[c]||0)+1; });
+        var topComm = Object.entries(commCounts).sort(function(a,b){return b[1]-a[1];})[0];
+        var intraEdges = NET.edges.filter(function(e){ return selSet[e.s] && selSet[e.t]; }).length;
+        document.getElementById('lasso-rows').innerHTML =
+          '<div class="row"><span class="k">Selected Nodes</span><span class="val">'+selected.length+'</span></div>'+
+          '<div class="row"><span class="k">Avg Degree</span><span class="val">'+avgDeg.toFixed(1)+'</span></div>'+
+          '<div class="row"><span class="k">Intra Edges</span><span class="val">'+intraEdges+'</span></div>'+
+          '<div class="row"><span class="k">Communities</span><span class="val">'+Object.keys(commCounts).length+'</span></div>'+
+          '<div class="row"><span class="k">Dominant Comm</span><span class="val" style="color:'+C15[(+topComm[0])%C15.length]+'">C'+topComm[0]+' ('+topComm[1]+')</span></div>';
+        document.getElementById('lasso-stats').style.display = 'block';
+      }
+    });
+})();
+
+// ================================================================
+// EGO NETWORK (double-click → show N-hop ego subgraph)
+// ================================================================
+(function(){
+  var egoMode = false;
+  var egoDepth = 0;
+  var egoNode = null;
+
+  document.getElementById('ego-btn').addEventListener('click', function(){
+    egoMode = !egoMode;
+    this.classList.toggle('on', egoMode);
+    this.textContent = egoMode ? 'Ego: ON' : 'Ego Net';
+    if (!egoMode) resetEgo();
+  });
+
+  function getNeighbours(nodeId, depth) {
+    var visited = {}, frontier = [nodeId];
+    visited[nodeId] = true;
+    for (var d = 0; d < depth; d++) {
+      var next = [];
+      frontier.forEach(function(id){
+        NET.edges.forEach(function(e){
+          var nb = e.s === id ? e.t : e.t === id ? e.s : -1;
+          if (nb >= 0 && !visited[nb]) { visited[nb] = true; next.push(nb); }
+        });
+      });
+      frontier = next;
+    }
+    return visited;
+  }
+
+  function applyEgo(nodeId, depth) {
+    egoNode = nodeId; egoDepth = depth;
+    var ego = getNeighbours(nodeId, depth);
+    d3.select('#main-svg').selectAll('circle')
+      .attr('opacity', function(n){ return n && ego[n.id] ? 1 : 0.06; })
+      .attr('stroke', function(n){ return n && n.id === nodeId ? '#F59E0B' : '#171C28'; })
+      .attr('stroke-width', function(n){ return n && n.id === nodeId ? 3.5 : 0.9; });
+    d3.select('#main-svg').selectAll('line')
+      .attr('stroke-opacity', function(e){ return ego[e.s] && ego[e.t] ? 0.7 : 0.03; })
+      .attr('stroke', function(e){ return (e.s === nodeId || e.t === nodeId) ? '#F59E0B' : '#475569'; })
+      .attr('stroke-width', function(e){ return (e.s === nodeId || e.t === nodeId) ? 2 : 0.9; });
+    var badge = document.getElementById('ego-badge');
+    badge.style.display = 'block';
+    badge.textContent = 'Ego of Node ' + nodeId + ' (' + depth + '-hop, ' + Object.keys(ego).length + ' nodes) -- click to expand | dblclick to reset';
+  }
+
+  function resetEgo() {
+    egoNode = null; egoDepth = 0;
+    d3.select('#main-svg').selectAll('circle').attr('opacity',1).attr('stroke','#171C28').attr('stroke-width',0.9);
+    d3.select('#main-svg').selectAll('line').attr('stroke-opacity',0.45).attr('stroke','#475569').attr('stroke-width',0.9);
+    document.getElementById('ego-badge').style.display = 'none';
+  }
+
+  document.getElementById('ego-badge').addEventListener('click', function(){
+    if (egoNode !== null) applyEgo(egoNode, Math.min(egoDepth + 1, 3));
+  });
+  document.getElementById('ego-badge').addEventListener('dblclick', function(e){
+    e.stopPropagation(); resetEgo(); egoMode = false;
+    document.getElementById('ego-btn').classList.remove('on');
+    document.getElementById('ego-btn').textContent = 'Ego Net';
+  });
+
+  d3.select('#main-svg').on('dblclick.ego', function(event){
+    if (!egoMode) return;
+    var target = event.target;
+    if (target.tagName !== 'circle' && target.tagName !== 'CIRCLE') { resetEgo(); return; }
+    var nd = d3.select(target).datum();
+    if (!nd) return;
+    event.stopPropagation();
+    applyEgo(nd.id, 1);
+  });
+})();
+
+// ================================================================
+// COMMUNITY GRAVITY PULL
+// ================================================================
+(function(){
+  var gravityOn = false;
+  document.getElementById('gravity-btn').addEventListener('click', function(){
+    gravityOn = !gravityOn;
+    this.classList.toggle('on', gravityOn);
+    this.textContent = gravityOn ? 'Gravity ON' : 'Gravity';
+    if (gravityOn) {
+      // Pull nodes toward their community centroid with animated transitions
+      var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+      var curLayoutKey = 'spring';
+      document.querySelectorAll('#layout-btns .nbtn').forEach(function(b){ if(b.classList.contains('on')) curLayoutKey = b.dataset.layout; });
+      var posMap2 = {spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+      var curPosNow = posMap2[curLayoutKey] || POS.spring;
+
+      // Calculate community centroids
+      var centroids = {};
+      var counts = {};
+      NET.nodes.forEach(function(n){
+        var c = NET.part[n.id]||0, pos = curPosNow[n.id];
+        if (!pos) return;
+        if (!centroids[c]) { centroids[c] = {x:0,y:0}; counts[c] = 0; }
+        centroids[c].x += pos.x; centroids[c].y += pos.y; counts[c]++;
+      });
+      Object.keys(centroids).forEach(function(c){ centroids[c].x /= counts[c]; centroids[c].y /= counts[c]; });
+
+      // Build gravity-pulled positions
+      var gravPos = NET.nodes.map(function(n){
+        var pos = curPosNow[n.id], c = NET.part[n.id]||0, cen = centroids[c];
+        if (!pos || !cen) return pos;
+        return { x: pos.x * 0.25 + cen.x * 0.75, y: pos.y * 0.25 + cen.y * 0.75 };
+      });
+
+      d3.select('#main-svg').selectAll('circle').transition().duration(800).ease(d3.easeCubicInOut)
+        .attr('cx', function(n){ return gravPos[n.id] ? gravPos[n.id].x * W2 : 0; })
+        .attr('cy', function(n){ return gravPos[n.id] ? gravPos[n.id].y * H2 : 0; });
+      d3.select('#main-svg').selectAll('line').transition().duration(800).ease(d3.easeCubicInOut)
+        .attr('x1',function(e){ return gravPos[e.s] ? gravPos[e.s].x*W2 : 0; }).attr('y1',function(e){ return gravPos[e.s] ? gravPos[e.s].y*H2 : 0; })
+        .attr('x2',function(e){ return gravPos[e.t] ? gravPos[e.t].x*W2 : 0; }).attr('y2',function(e){ return gravPos[e.t] ? gravPos[e.t].y*H2 : 0; });
+
+      // Add centroid labels
+      d3.select('#main-svg').selectAll('.cent-label').remove();
+      Object.keys(centroids).forEach(function(c){
+        var cen = centroids[c];
+        var col = C15[c % C15.length];
+        d3.select('#main-svg').select('g').append('text').attr('class','cent-label')
+          .attr('x', cen.x * W2).attr('y', cen.y * H2 - 12)
+          .attr('text-anchor','middle').attr('font-family','DM Mono').attr('font-size',9).attr('fill',col).attr('font-weight','700')
+          .text('C' + c);
+      });
+    } else {
+      // Restore original layout positions
+      var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+      var curLayoutKey2 = 'spring';
+      document.querySelectorAll('#layout-btns .nbtn').forEach(function(b){ if(b.classList.contains('on')) curLayoutKey2 = b.dataset.layout; });
+      var posMap3 = {spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+      var curPosNow2 = posMap3[curLayoutKey2] || POS.spring;
+      d3.select('#main-svg').selectAll('circle').transition().duration(800).ease(d3.easeCubicInOut)
+        .attr('cx',function(n){ return curPosNow2[n.id] ? curPosNow2[n.id].x*W2 : 0; })
+        .attr('cy',function(n){ return curPosNow2[n.id] ? curPosNow2[n.id].y*H2 : 0; });
+      d3.select('#main-svg').selectAll('line').transition().duration(800).ease(d3.easeCubicInOut)
+        .attr('x1',function(e){ return curPosNow2[e.s]?curPosNow2[e.s].x*W2:0; }).attr('y1',function(e){ return curPosNow2[e.s]?curPosNow2[e.s].y*H2:0; })
+        .attr('x2',function(e){ return curPosNow2[e.t]?curPosNow2[e.t].x*W2:0; }).attr('y2',function(e){ return curPosNow2[e.t]?curPosNow2[e.t].y*H2:0; });
+      d3.select('#main-svg').selectAll('.cent-label').remove();
+    }
+  });
+})();
+
+// ================================================================
+// FISHEYE MAGNIFICATION LENS
+// ================================================================
+(function(){
+  var fisheyeOn = false;
+  var FISH_R = 90;
+
+  document.getElementById('fisheye-btn').addEventListener('click', function(){
+    fisheyeOn = !fisheyeOn;
+    this.classList.toggle('on', fisheyeOn);
+    this.textContent = fisheyeOn ? 'Fisheye ON' : 'Fisheye';
+    if (!fisheyeOn) {
+      document.getElementById('fisheye-circle').style.display = 'none';
+      // Restore node positions
+      var W2 = document.getElementById('main-net-wrap').clientWidth || 900, H2 = 520;
+      var curLayoutKey = 'spring';
+      document.querySelectorAll('#layout-btns .nbtn').forEach(function(b){ if(b.classList.contains('on')) curLayoutKey = b.dataset.layout; });
+      var posMap2 = {spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+      var curPosNow = posMap2[curLayoutKey] || POS.spring;
+      d3.select('#main-svg').selectAll('circle')
+        .attr('cx', function(n){ return curPosNow[n.id] ? curPosNow[n.id].x*W2 : 0; })
+        .attr('cy', function(n){ return curPosNow[n.id] ? curPosNow[n.id].y*H2 : 0; })
+        .attr('r', function(n){ return Math.max(3, 2.2 + n.deg*.038); });
+    }
+  });
+
+  var wrap = document.getElementById('main-net-wrap');
+  wrap.addEventListener('mousemove', function(e) {
+    if (!fisheyeOn) return;
+    var rect = wrap.getBoundingClientRect();
+    var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+    // Position the visual circle
+    var fc = document.getElementById('fisheye-circle');
+    fc.style.display = 'block';
+    fc.style.left = (mx - FISH_R) + 'px';
+    fc.style.top  = (my - FISH_R) + 'px';
+
+    var W2 = wrap.clientWidth || 900, H2 = 520;
+    var transform = d3.zoomTransform(document.getElementById('main-svg'));
+    var curLayoutKey = 'spring';
+    document.querySelectorAll('#layout-btns .nbtn').forEach(function(b){ if(b.classList.contains('on')) curLayoutKey = b.dataset.layout; });
+    var posMap2 = {spring:POS.spring,shell:POS.shell,circular:POS.circular,spectral:POS.spectral,kk:POS.kk,random:POS.random,multi:POS.multi};
+    var curPosNow = posMap2[curLayoutKey] || POS.spring;
+
+    d3.select('#main-svg').selectAll('circle').each(function(n) {
+      if (!n || !curPosNow[n.id]) return;
+      var px = transform.applyX(curPosNow[n.id].x * W2);
+      var py = transform.applyY(curPosNow[n.id].y * H2);
+      var dx = px - mx, dy = py - my;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < FISH_R) {
+        // Fisheye distortion: magnify toward center
+        var k = 2.5 * (1 - dist / FISH_R);
+        var nx = mx + dx * (1 + k * .6);
+        var ny = my + dy * (1 + k * .6);
+        var newR = Math.max(3, 2.2 + n.deg*.038) * (1 + k * 1.2);
+        d3.select(this).attr('cx', transform.invertX(nx)).attr('cy', transform.invertY(ny)).attr('r', newR);
+      } else {
+        d3.select(this).attr('cx', curPosNow[n.id].x * W2).attr('cy', curPosNow[n.id].y * H2)
+          .attr('r', Math.max(3, 2.2 + n.deg*.038));
+      }
+    });
+  });
+  wrap.addEventListener('mouseleave', function() {
+    if (fisheyeOn) document.getElementById('fisheye-circle').style.display = 'none';
+  });
+})();
+
+// ================================================================
+// SIR DIFFUSION SIMULATION
+// ================================================================
+(function(){
+  var S = 0, I = 1, R = 2;
+  var state = NET.nodes.map(function(){ return S; });
+  var diffTimer = null;
+  var diffTick = 0;
+  var diffPlaying = false;
+  var seedNode = 0;
+
+  function resetDiff() {
+    clearInterval(diffTimer); diffPlaying = false; diffTimer = null; diffTick = 0;
+    state = NET.nodes.map(function(){ return S; });
+    document.getElementById('diff-play').textContent = '&#9654; Play';
+    document.getElementById('diff-play').classList.add('on');
+    updateDiffViz();
+    updateSIRBar();
+  }
+
+  function updateSIRBar() {
+    var sc = state.filter(function(s){ return s===S; }).length;
+    var ic = state.filter(function(s){ return s===I; }).length;
+    var rc = state.filter(function(s){ return s===R; }).length;
+    var tot = sc+ic+rc;
+    document.getElementById('sir-s').style.flex = sc;
+    document.getElementById('sir-i').style.flex = ic;
+    document.getElementById('sir-r').style.flex = rc;
+    document.getElementById('sir-sc').textContent = sc;
+    document.getElementById('sir-ic').textContent = ic;
+    document.getElementById('sir-rc').textContent = rc;
+    document.getElementById('diff-tick').textContent = diffTick;
+    if (ic === 0 && diffTick > 0) {
+      clearInterval(diffTimer); diffPlaying = false;
+      document.getElementById('diff-play').textContent = '&#9654; Play';
+    }
+  }
+
+  function updateDiffViz() {
+    d3.select('#main-svg').selectAll('circle').each(function(n) {
+      if (!n) return;
+      var s = state[n.id];
+      var baseCol = C15[(NET.part[n.id]||0) % C15.length];
+      var col = s === I ? '#EF4444' : s === R ? '#64748B' : baseCol;
+      var r = Math.max(3, 2.2 + n.deg*.038);
+      if (s === I) r = r * 1.5;
+      d3.select(this).attr('fill', col).attr('r', r)
+        .attr('stroke', s === I ? '#FCA5A5' : '#171C28')
+        .attr('stroke-width', s === I ? 2.5 : 0.9);
+    });
+  }
+
+  function diffStep() {
+    diffTick++;
+    var prob = parseInt(document.getElementById('diff-prob').value) / 100;
+    var newState = state.slice();
+    // Infected nodes recover
+    state.forEach(function(s, i){ if (s === I && Math.random() < 0.25) newState[i] = R; });
+    // Infected nodes spread
+    NET.edges.forEach(function(e){
+      if (state[e.s] === I && state[e.t] === S && Math.random() < prob) newState[e.t] = I;
+      if (state[e.t] === I && state[e.s] === S && Math.random() < prob) newState[e.s] = I;
+    });
+    state = newState;
+    updateDiffViz();
+    updateSIRBar();
+  }
+
+  document.getElementById('diff-play').addEventListener('click', function(){
+    diffPlaying = !diffPlaying;
+    if (diffPlaying) {
+      // Infect seed
+      seedNode = parseInt(document.getElementById('seed-input').value) || 0;
+      if (seedNode < 0 || seedNode >= NN) seedNode = 0;
+      state[seedNode] = I;
+      updateDiffViz();
+      var speed = 1100 - parseInt(document.getElementById('diff-speed').value);
+      diffTimer = setInterval(diffStep, speed);
+      this.innerHTML = '&#9646;&#9646; Pause';
+      this.classList.remove('on');
+    } else {
+      clearInterval(diffTimer);
+      this.innerHTML = '&#9654; Play';
+      this.classList.add('on');
+    }
+  });
+
+  document.getElementById('diff-reset').addEventListener('click', resetDiff);
+  document.getElementById('diff-prob').addEventListener('input', function(){
+    document.getElementById('diff-prob-val').textContent = this.value + '%';
+  });
+  document.getElementById('diff-speed').addEventListener('input', function(){
+    if (diffPlaying) {
+      clearInterval(diffTimer);
+      var speed = 1100 - parseInt(this.value);
+      diffTimer = setInterval(diffStep, speed);
+    }
+  });
+
+  resetDiff();
+})();
+
+// ================================================================
+// CHORD DIAGRAM
+// ================================================================
+(function(){
+  var CW = Math.min(document.querySelector('.chord-wrap') ? document.querySelector('.chord-wrap').clientWidth : 600, 620);
+  var CH = CW;
+  var R_outer = CW * 0.43, R_inner = CW * 0.37, R_label = CW * 0.47;
+  var cx = CW/2, cy = CH/2;
+
+  var svg = d3.select('#chord-svg').attr('width', CW).attr('height', CH).attr('viewBox', '0 0 '+CW+' '+CH);
+  var g = svg.append('g').attr('transform','translate('+cx+','+cy+')');
+
+  // Build 12x12 matrix from heatData
+  var nComm = 12;
+  var matrix = Array.from({length:nComm}, function(){ return new Array(nComm).fill(0); });
+  heatData.forEach(function(d){
+    var si = hL.indexOf(d.s), ti = hL.indexOf(d.t);
+    if (si>=0 && ti>=0) matrix[si][ti] = d.v * 1000;
+  });
+
+  // Community sizes (for arc widths)
+  var commSizes = [400,350,300,280,250,220,200,185,170,155,145,135];
+
+  var chord = d3.chord().padAngle(.03).sortSubgroups(d3.descending)(matrix);
+
+  var arc = d3.arc().innerRadius(R_inner).outerRadius(R_outer);
+  var ribbon = d3.ribbon().radius(R_inner * 0.97);
+
+  var chordTip = document.getElementById('chord-tip');
+
+  // Draw chords
+  g.append('g').selectAll('path').data(chord).enter().append('path')
+    .attr('d', ribbon)
+    .attr('fill', function(d){ return C15[d.source.index % C15.length]; })
+    .attr('opacity', 0.35)
+    .attr('stroke', function(d){ return C15[d.source.index % C15.length]; })
+    .attr('stroke-width', 0.5)
+    .attr('class','chord-ribbon')
+    .on('mouseover', function(event, d){
+      d3.select(this).attr('opacity', 0.75);
+      chordTip.style.display = 'block';
+      chordTip.innerHTML = hL[d.source.index] + ' &harr; ' + hL[d.target.index] + '<br>Density: ' + (matrix[d.source.index][d.target.index]/1000).toFixed(4);
+    })
+    .on('mousemove', function(event){ chordTip.style.left=(event.clientX+12)+'px'; chordTip.style.top=(event.clientY-10)+'px'; })
+    .on('mouseout', function(){ d3.select(this).attr('opacity',0.35); chordTip.style.display='none'; });
+
+  // Draw arcs
+  var grp = g.append('g').selectAll('g').data(chord.groups).enter().append('g').attr('class','arc');
+
+  grp.append('path').attr('d', arc)
+    .attr('fill', function(d){ return C15[d.index % C15.length]; })
+    .attr('stroke', '#171C28').attr('stroke-width', 1)
+    .on('mouseover', function(event, d){
+      var idx = d.index;
+      // Highlight chords from this community
+      g.selectAll('.chord-ribbon')
+        .attr('opacity', function(c){ return c.source.index===idx || c.target.index===idx ? 0.8 : 0.06; });
+      chordTip.style.display = 'block';
+      chordTip.innerHTML = '<strong>' + hL[idx] + '</strong><br>Intra-density: ' + matrix[idx][idx].toFixed(0) + '<br>Click to filter main graph';
+    })
+    .on('mousemove', function(event){ chordTip.style.left=(event.clientX+12)+'px'; chordTip.style.top=(event.clientY-10)+'px'; })
+    .on('mouseout', function(){
+      g.selectAll('.chord-ribbon').attr('opacity', 0.35);
+      chordTip.style.display = 'none';
+    })
+    .on('click', function(event, d){
+      // Filter main graph to this community
+      var idx = d.index;
+      d3.select('#main-svg').selectAll('circle')
+        .attr('opacity', function(n){ return n && (NET.part[n.id]||0) === idx ? 1 : 0.07; });
+      d3.select('#main-svg').selectAll('line')
+        .attr('stroke-opacity', function(e){ return (NET.part[e.s]||0)===idx && (NET.part[e.t]||0)===idx ? 0.7 : 0.03; });
+    });
+
+  // Arc labels
+  grp.append('text')
+    .each(function(d){ d.angle = (d.startAngle + d.endAngle) / 2; })
+    .attr('dy', '.35em')
+    .attr('transform', function(d){
+      return 'rotate('+(d.angle*180/Math.PI-90)+') translate('+(R_label)+') '+(d.angle > Math.PI ? 'rotate(180)' : '');
+    })
+    .attr('text-anchor', function(d){ return d.angle > Math.PI ? 'end' : null; })
+    .attr('font-size', 8.5).attr('font-family','DM Mono').attr('fill','#94A3B8')
+    .text(function(d){ return 'C'+d.index; });
+
+  // Reset main graph on double-click chord
+  svg.on('dblclick', function(){
+    d3.select('#main-svg').selectAll('circle').attr('opacity',1);
+    d3.select('#main-svg').selectAll('line').attr('stroke-opacity',0.45);
+  });
+})();
+
+
+// ================================================================
+// FORCE-DIRECTED INTERACTIVE EXPLORER
+// ================================================================
+(function(){
+  var fdMeta = {
+    spring: {name:"FR-Default",   sep:1.42, uni:.52, spr:.89, speed:85, scale:75, k:"auto",   iters:50,  color:"#3B82F6"},
+    high:   {name:"FR-HighIter",  sep:1.48, uni:.61, spr:.88, speed:40, scale:45, k:"auto",   iters:300, color:"#EF4444"},
+    sparse: {name:"FR-SparseK",   sep:1.71, uni:.55, spr:1.02,speed:65, scale:70, k:"3/sqrt(n)",iters:100,color:"#10B981"},
+    dense:  {name:"FR-DenseK",    sep:1.29, uni:.48, spr:.74, speed:65, scale:65, k:"0.5/sqrt(n)",iters:100,color:"#F59E0B"},
+    kk:     {name:"Kamada-Kawai", sep:1.58, uni:.71, spr:.85, speed:20, scale:20, k:"energy", iters:"--",color:"#8B5CF6"},
+    arf:    {name:"ARF",          sep:1.45, uni:.57, spr:.91, speed:50, scale:50, k:"adaptive",iters:110, color:"#14B8A6"},
+  };
+  var metricLabels = [
+    {key:"sep",  label:"Comm. Sep",   fmt:function(v){return v.toFixed(2);}, bestFn:Math.max},
+    {key:"uni",  label:"Edge Unif.",  fmt:function(v){return v.toFixed(2);}, bestFn:Math.max},
+    {key:"spr",  label:"Spread",      fmt:function(v){return v.toFixed(2);}, bestFn:Math.max},
+    {key:"speed",label:"Speed /100",  fmt:function(v){return v;},           bestFn:Math.max},
+    {key:"scale",label:"Scalability", fmt:function(v){return v;},           bestFn:Math.max},
+  ];
+
+  var curFD = "spring";
+  var compareMode = false;
+  var gridMode = false;
+  var syncZoom = true;
+
+  // ── Build main big SVG ──
+  var W = document.getElementById('fd-main-wrap').clientWidth || 900;
+  var H = 460;
+
+  function buildFDSvg(svgEl, posKey, W2, H2, btwSize, zoomRef) {
+    var pos = POS[posKey];
+    var svg = d3.select(svgEl).attr('width',W2).attr('height',H2)
+      .attr('viewBox','0 0 '+W2+' '+H2).style('cursor','grab');
+    svg.selectAll('*').remove();
+    var g = svg.append('g');
+    var zm = d3.zoom().scaleExtent([.3,12]).on('zoom',function(ev){
+      g.attr('transform',ev.transform); svg.style('cursor','grabbing');
+      if (syncZoom && zoomRef) {
+        zoomRef.svg.call(zoomRef.zoom.transform, ev.transform);
+      }
+    }).on('end',function(){ svg.style('cursor','grab'); });
+    svg.call(zm);
+    svg.on('dblclick.zoom',function(){ svg.transition().duration(500).call(zm.transform,d3.zoomIdentity); });
+
+    // edges
+    g.append('g').attr('stroke','#475569').attr('stroke-opacity',.42).attr('stroke-width',.9)
+      .selectAll('line').data(NET.edges).enter().append('line')
+      .attr('x1',function(e){return pos[e.s]?pos[e.s].x*W2:0;}).attr('y1',function(e){return pos[e.s]?pos[e.s].y*H2:0;})
+      .attr('x2',function(e){return pos[e.t]?pos[e.t].x*W2:0;}).attr('y2',function(e){return pos[e.t]?pos[e.t].y*H2:0;});
+
+    // nodes
+    g.selectAll('circle').data(NET.nodes).enter().append('circle')
+      .attr('cx',function(n){return pos[n.id]?pos[n.id].x*W2:0;})
+      .attr('cy',function(n){return pos[n.id]?pos[n.id].y*H2:0;})
+      .attr('r',function(n){return btwSize?Math.max(2.5,2+n.btw*16):Math.max(3,2.2+n.deg*.038);})
+      .attr('fill',function(n){return C15[(NET.part[n.id]||0)%C15.length];})
+      .attr('stroke','#171C28').attr('stroke-width',.9).attr('opacity',.9)
+      .style('cursor','pointer')
+      .on('mouseover',function(event,n){
+        var c=NET.part[n.id]||0, col=C15[c%C15.length];
+        showTip(event,'<div style="font-family:DM Mono,monospace;font-size:.67rem;line-height:1.7">'
+          +'<div style="font-size:.75rem;font-weight:700;color:white;margin-bottom:2px">Node '+n.id+'</div>'
+          +'<div style="display:inline-block;background:'+col+';padding:1px 7px;border-radius:20px;color:white;font-size:.58rem;margin-bottom:3px">Comm '+c+'</div><br>'
+          +'Degree: <b style="color:white">'+n.deg+'</b><br>Betweenness: <b style="color:white">'+n.btw.toFixed(4)+'</b></div>');
+        d3.select(this).attr('stroke','#F8FAFC').attr('stroke-width',2.2).raise();
+        // highlight neighbours
+        var nbrs={};
+        NET.edges.forEach(function(e){if(e.s===n.id)nbrs[e.t]=1;if(e.t===n.id)nbrs[e.s]=1;});
+        g.selectAll('line').attr('stroke-opacity',function(e){return(e.s===n.id||e.t===n.id)?.85:.05;})
+          .attr('stroke',function(e){return(e.s===n.id||e.t===n.id)?col:'#475569';})
+          .attr('stroke-width',function(e){return(e.s===n.id||e.t===n.id)?2:.9;});
+        g.selectAll('circle').attr('opacity',function(m){return m.id===n.id||nbrs[m.id]?1:.12;});
+      })
+      .on('mouseout',function(){
+        hideTip();
+        d3.select(this).attr('stroke','#171C28').attr('stroke-width',.9);
+        g.selectAll('line').attr('stroke-opacity',.42).attr('stroke','#475569').attr('stroke-width',.9);
+        g.selectAll('circle').attr('opacity',.9);
+      });
+
+    return {svg:svg, zoom:zm, g:g};
+  }
+
+  // ── Metrics bar ──
+  function renderMetrics(fdKey) {
+    var meta = fdMeta[fdKey];
+    var bar = document.getElementById('fd-metrics');
+    var bestVals = {};
+    metricLabels.forEach(function(ml){
+      var vals = Object.values(fdMeta).map(function(m){return m[ml.key];});
+      bestVals[ml.key] = ml.bestFn.apply(null, vals);
+    });
+    bar.innerHTML = metricLabels.map(function(ml){
+      var isBest = meta[ml.key] === bestVals[ml.key];
+      return '<div class="fd-metric'+(isBest?' best':'')+'">'+
+        '<div class="mv">'+ml.fmt(meta[ml.key])+'</div>'+
+        '<div class="ml">'+ml.label+(isBest?' ★':'')+'</div>'+
+        '</div>';
+    }).join('') +
+    '<div class="fd-metric" style="background:var(--blue-lt);border-color:var(--blue)">'+
+      '<div class="mv" style="color:var(--blue);font-size:1rem">'+meta.iters+'</div>'+
+      '<div class="ml" style="color:var(--blue)">Iterations</div>'+
+    '</div>';
+  }
+
+  // ── Main single view ──
+  var mainNet = buildFDSvg(document.getElementById('fd-main-svg'), 'spring', W, H, false, null);
+  renderMetrics('spring');
+
+  // Variant switcher
+  document.querySelectorAll('#fd-btns .fd-variant-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var fdKey = btn.dataset.fd;
+      var animate = document.getElementById('fd-anim-check').checked;
+      curFD = fdKey;
+
+      document.querySelectorAll('#fd-btns .fd-variant-btn').forEach(function(b){b.classList.remove('on');});
+      btn.classList.add('on');
+
+      var newPos = POS[fdKey];
+      if (!newPos) return;
+
+      if (animate) {
+        // Animated node transition
+        d3.select('#fd-main-svg').select('g').selectAll('circle')
+          .transition().duration(750).ease(d3.easeCubicInOut)
+          .attr('cx',function(n){return newPos[n.id]?newPos[n.id].x*W:0;})
+          .attr('cy',function(n){return newPos[n.id]?newPos[n.id].y*H:0;});
+        d3.select('#fd-main-svg').select('g').selectAll('line')
+          .transition().duration(750).ease(d3.easeCubicInOut)
+          .attr('x1',function(e){return newPos[e.s]?newPos[e.s].x*W:0;}).attr('y1',function(e){return newPos[e.s]?newPos[e.s].y*H:0;})
+          .attr('x2',function(e){return newPos[e.t]?newPos[e.t].x*W:0;}).attr('y2',function(e){return newPos[e.t]?newPos[e.t].y*H:0;});
+      } else {
+        // Instant
+        d3.select('#fd-main-svg').select('g').selectAll('circle')
+          .attr('cx',function(n){return newPos[n.id]?newPos[n.id].x*W:0;})
+          .attr('cy',function(n){return newPos[n.id]?newPos[n.id].y*H:0;});
+        d3.select('#fd-main-svg').select('g').selectAll('line')
+          .attr('x1',function(e){return newPos[e.s]?newPos[e.s].x*W:0;}).attr('y1',function(e){return newPos[e.s]?newPos[e.s].y*H:0;})
+          .attr('x2',function(e){return newPos[e.t]?newPos[e.t].x*W:0;}).attr('y2',function(e){return newPos[e.t]?newPos[e.t].y*H:0;});
+      }
+      renderMetrics(fdKey);
+
+      // Show variant title
+      d3.select('#fd-main-svg').selectAll('.fd-title').remove();
+      var col = fdMeta[fdKey].color;
+      d3.select('#fd-main-svg').append('text').attr('class','fd-title')
+        .attr('x',12).attr('y',20).attr('font-family','DM Mono').attr('font-size',11)
+        .attr('fill',col).attr('font-weight','700').text(fdMeta[fdKey].name + '  k='+fdMeta[fdKey].k+'  iter='+fdMeta[fdKey].iters);
+    });
+  });
+
+  // Add initial title
+  var col0 = fdMeta['spring'].color;
+  d3.select('#fd-main-svg').append('text').attr('class','fd-title')
+    .attr('x',12).attr('y',20).attr('font-family','DM Mono').attr('font-size',11)
+    .attr('fill',col0).attr('font-weight','700').text('FR-Default  k=auto  iter=50');
+
+  // ── Compare 2 view ──
+  var leftRef = null, rightRef = null;
+
+  function buildCompare() {
+    var lKey = document.getElementById('fd-left-sel').value;
+    var rKey = document.getElementById('fd-right-sel').value;
+    var CW = document.getElementById('fd-left-wrap').clientWidth || 440, CH = 350;
+
+    document.getElementById('fd-left-wrap').innerHTML = '<svg id="fd-left-svg"></svg>';
+    document.getElementById('fd-right-wrap').innerHTML = '<svg id="fd-right-svg"></svg>';
+
+    rightRef = {svg:null, zoom:null};
+    leftRef  = {svg:null, zoom:null};
+
+    var lNet = buildFDSvg(document.getElementById('fd-left-svg'),  lKey, CW, CH, false, syncZoom ? rightRef : null);
+    var rNet = buildFDSvg(document.getElementById('fd-right-svg'), rKey, CW, CH, false, syncZoom ? leftRef  : null);
+    leftRef.svg = lNet.svg;   leftRef.zoom = lNet.zoom;
+    rightRef.svg = rNet.svg;  rightRef.zoom = rNet.zoom;
+
+    document.getElementById('fd-left-label').textContent  = fdMeta[lKey].name + '  sep='+fdMeta[lKey].sep.toFixed(2);
+    document.getElementById('fd-right-label').textContent = fdMeta[rKey].name + '  sep='+fdMeta[rKey].sep.toFixed(2);
+  }
+
+  document.getElementById('fd-compare-btn').addEventListener('click', function(){
+    compareMode = !compareMode; gridMode = false;
+    this.classList.toggle('on', compareMode);
+    document.getElementById('fd-all-btn').classList.remove('on');
+    document.getElementById('fd-single-view').style.display  = compareMode ? 'none' : 'block';
+    document.getElementById('fd-compare-view').style.display = compareMode ? 'block' : 'none';
+    document.getElementById('fd-grid-view').style.display    = 'none';
+    if (compareMode) buildCompare();
+  });
+
+  document.getElementById('fd-left-sel').addEventListener('change', function(){ if(compareMode) buildCompare(); });
+  document.getElementById('fd-right-sel').addEventListener('change', function(){ if(compareMode) buildCompare(); });
+
+  document.getElementById('fd-sync-btn').addEventListener('click', function(){
+    syncZoom = !syncZoom;
+    this.classList.toggle('on', syncZoom);
+    this.textContent = syncZoom ? 'Sync Zoom' : 'Free Zoom';
+    if (compareMode) buildCompare();
+  });
+
+  // ── All 6 grid view ──
+  document.getElementById('fd-all-btn').addEventListener('click', function(){
+    gridMode = !gridMode; compareMode = false;
+    this.classList.toggle('on', gridMode);
+    document.getElementById('fd-compare-btn').classList.remove('on');
+    document.getElementById('fd-single-view').style.display  = gridMode ? 'none' : 'block';
+    document.getElementById('fd-compare-view').style.display = 'none';
+    document.getElementById('fd-grid-view').style.display    = gridMode ? 'block' : 'none';
+
+    if (gridMode && !document.getElementById('net-fd6').children.length) {
+      // Render all 6 as small cards
+      var fdOrder = ['spring','high','sparse','dense','kk','arf'];
+      var fdNames = {spring:'FR-Default iter=50',high:'FR-HighIter iter=300',sparse:'FR-SparseK k=3/√n',dense:'FR-DenseK k=0.5/√n',kk:'Kamada-Kawai',arf:'ARF'};
+      var fdSeps  = {spring:1.42,high:1.48,sparse:1.71,dense:1.29,kk:1.58,arf:1.45};
+      fdOrder.forEach(function(key){
+        netCard('net-fd6', POS[key], PARTS.lou, C15, 320, 240,
+          '<strong style="color:var(--text)">'+fdNames[key]+'</strong><br>Sep='+fdSeps[key], false);
+      });
+    }
+  });
+
+  // ── k-parameter sensitivity chart ──
+  var kData = [
+    {k:'0.1/√n',sep:0.82,uni:.28,spr:.41},{k:'0.25/√n',sep:1.05,uni:.34,spr:.58},
+    {k:'0.5/√n (Dense)',sep:1.29,uni:.48,spr:.74},{k:'1.0/√n (Default)',sep:1.42,uni:.52,spr:.89},
+    {k:'2.0/√n',sep:1.65,uni:.54,spr:.98},{k:'3.0/√n (Sparse)',sep:1.71,uni:.55,spr:1.02},
+    {k:'5.0/√n',sep:1.68,uni:.50,spr:.95},{k:'10/√n',sep:1.52,uni:.44,spr:.84},
+  ];
+  vegaEmbed('#c-kparam', {
+    $schema:'https://vega.github.io/schema/vega-lite/v5.json',
+    config:CFG, width:'container', height:240,
+    data:{values:kData},
+    layer:[
+      {mark:{type:'line',strokeWidth:2.5,point:{filled:true,size:70}},
+       encoding:{x:{field:'k',type:'ordinal',axis:{title:'Spring Constant k (relative to √n)',labelAngle:-20}},
+         y:{field:'sep',type:'quantitative',axis:{title:'Community Separation Ratio'},scale:{domain:[0.6,1.9]}},
+         color:{value:'#3B82F6'},
+         tooltip:[{field:'k',title:'k value'},{field:'sep',title:'Sep Ratio',format:'.3f'},{field:'uni',title:'Edge Uniformity',format:'.3f'},{field:'spr',title:'Spread',format:'.3f'}]}},
+      {mark:{type:'point',size:200,filled:true,color:'#10B981'},
+       transform:[{filter:'datum.k === "3.0/√n (Sparse)"'}],
+       encoding:{x:{field:'k',type:'ordinal'},y:{field:'sep',type:'quantitative'}}},
+      {mark:{type:'text',dy:-14,fontSize:11,fontWeight:700},
+       transform:[{filter:'datum.k === "3.0/√n (Sparse)"'}],
+       encoding:{x:{field:'k',type:'ordinal'},y:{field:'sep',type:'quantitative'},
+         text:{value:'Optimal ★'},color:{value:'#10B981'}}}
+    ]
+  }, OPT);
+
+})(); // end FD explorer
+
+}); // end load
+</script>
+</body>
+</html>
