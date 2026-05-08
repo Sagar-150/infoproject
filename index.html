@@ -774,32 +774,21 @@ var mainCurPos = null; // tracks active layout positions for sim access
           +'<div style="display:inline-block;background:'+col+';color:white;padding:1px 7px;border-radius:20px;font-size:.6rem;margin-bottom:5px">Community '+comm+'</div><br>'
           +'Degree: <b style="color:white">'+n.deg+'</b><br>Betweenness: <b style="color:white">'+n.btw.toFixed(4)+'</b><br>Community: <b style="color:white">'+comm+'</b></div>');
         d3.select(this).attr("stroke","#F8FAFC").attr("stroke-width",2.2).raise();
-        // Skip neighbourhood dimming when path is displayed — it would obscure the path
-        if(!pathActive){
-          var nbrs={};
-          NET.edges.forEach(function(e){if(e.s===n.id)nbrs[e.t]=1;if(e.t===n.id)nbrs[e.s]=1;});
-          edgeG.selectAll("line")
-            .attr("stroke-opacity",function(e){return (e.s===n.id||e.t===n.id)?0.85:0.06;})
-            .attr("stroke",function(e){return (e.s===n.id||e.t===n.id)?col:"#475569";})
-            .attr("stroke-width",function(e){return (e.s===n.id||e.t===n.id)?1.6:.9;});
-          nodeG.selectAll("circle").attr("opacity",function(m){return m.id===n.id||nbrs[m.id]?1:0.2;});
-        }
+        // highlight neighbours
+        var nbrs={};
+        NET.edges.forEach(function(e){if(e.s===n.id)nbrs[e.t]=1;if(e.t===n.id)nbrs[e.s]=1;});
+        edgeG.selectAll("line")
+          .attr("stroke-opacity",function(e){return (e.s===n.id||e.t===n.id)?0.85:0.06;})
+          .attr("stroke",function(e){return (e.s===n.id||e.t===n.id)?col:"#475569";})
+          .attr("stroke-width",function(e){return (e.s===n.id||e.t===n.id)?1.6:.9;});
+        nodeG.selectAll("circle").attr("opacity",function(m){return m.id===n.id||nbrs[m.id]?1:0.2;});
       })
       .on("mouseout",function(event,n){
         hideTip();
-        // Only restore default styles if no path is currently displayed
-        if(!pathActive){
-          d3.select(this).attr("stroke","#171C28").attr("stroke-width",.9);
-          edgeG.selectAll("line").attr("stroke-opacity",.45).attr("stroke","#475569").attr("stroke-width",.9);
-          nodeG.selectAll("circle").attr("opacity",1);
-          applyFilter();
-        } else {
-          // Path is active — just restore this node's stroke to its path state
-          var isOnPath = pathHighlightNodes && pathHighlightNodes[n.id];
-          d3.select(this)
-            .attr("stroke", isOnPath ? "#F59E0B" : "#171C28")
-            .attr("stroke-width", isOnPath ? 3 : 0.9);
-        }
+        d3.select(this).attr("stroke","#171C28").attr("stroke-width",.9);
+        edgeG.selectAll("line").attr("stroke-opacity",.45).attr("stroke","#475569").attr("stroke-width",.9);
+        nodeG.selectAll("circle").attr("opacity",1);
+        applyFilter();
       })
       .on("click",function(event,n){
         // ── Path mode: pick nodes here before stopPropagation kills SVG-level handler
@@ -821,10 +810,6 @@ var mainCurPos = null; // tracks active layout positions for sim access
               for(var pi=0;pi<path.length-1;pi++){
                 edgeSet[Math.min(path[pi],path[pi+1])+'-'+Math.max(path[pi],path[pi+1])]=true;
               }
-              // Store active path state so mouseout can preserve it
-              pathActive = true;
-              pathHighlightNodes = pathSet;
-              pathHighlightEdges = edgeSet;
               nodeG.selectAll('circle')
                 .attr('stroke',function(m){return m&&pathSet[m.id]?'#F59E0B':'#171C28';})
                 .attr('stroke-width',function(m){return m&&pathSet[m.id]?3:0.9;})
@@ -919,12 +904,9 @@ var mainCurPos = null; // tracks active layout positions for sim access
     });
   });
 
-  // Close info panel and clear path on background click
+  // Close info panel
   document.getElementById("close-info").addEventListener("click",function(){document.getElementById("info-panel").style.display="none";});
-  svg.on("click",function(){
-    document.getElementById("info-panel").style.display="none";
-    if(pathActive) clearPath();
-  });
+  svg.on("click",function(){document.getElementById("info-panel").style.display="none";});
 
   // Search node
   document.getElementById("search-btn").addEventListener("click",function(){
@@ -1034,14 +1016,12 @@ netCard("net-algos",POS.spring,PARTS.gn,C15,220,185,"<strong>Girvan-Newman</stro
 netCard("net-algos",POS.spring,PARTS.kc,d3.schemeTableau10,220,185,"<strong>K-Clique</strong> Q=N/A",false);
 
 // All 7 layouts
-var all7=[{pos:POS.spring,lb:"<strong>Spring</strong> Sep=82"},{pos:POS.circular,lb:"<strong>Circular</strong> Sep=54"},{pos:POS.kk,lb:"<strong>Kamada-Kawai</strong> Sep=78"},{pos:POS.spectral,lb:"<strong>Spectral</strong> Sep=80"},{pos:POS.shell,lb:"<strong>Shell *</strong> Sep=91"},{pos:POS.random,lb:"<strong>Random</strong> Sep=12"},{pos:POS.multi,lb:"<strong>Multipartite</strong> Sep=72"}];
+var all7=[{pos:POS.spring,lb:"<strong>Spring</strong> Sep=82"},{pos:POS.circular,lb:"<strong>Circular</strong> Sep=54"},{pos:POS.kk,lb:"<strong>KK</strong> Sep=78"},{pos:POS.spectral,lb:"<strong>Spectral</strong> Sep=80"},{pos:POS.shell,lb:"<strong>Shell *</strong> Sep=91"},{pos:POS.random,lb:"<strong>Random</strong> Sep=12"},{pos:POS.multi,lb:"<strong>Multipartite</strong> Sep=72"}];
 all7.forEach(function(a){netCard("net-7",a.pos,PARTS.lou,C15,265,205,a.lb,false);});
 
-// NOTE: fd6 grid is intentionally NOT pre-rendered here.
-// #net-fd6 lives inside #fd-grid-view (display:none at load).
-// Rendering into a hidden container gives zero-width SVGs.
-// The lazy render inside the fd-all-btn click handler runs instead,
-// when the container is already visible — same fix as Graph 9 tabs.
+// FD 6 variants
+var fd6=[{pos:POS.spring,lb:"<strong>FR-Default</strong> iter=50"},{pos:POS.high,lb:"<strong>FR-HighIter</strong> iter=300"},{pos:POS.sparse,lb:"<strong>FR-SparseK *</strong> k=3/sqrt(n)"},{pos:POS.dense,lb:"<strong>FR-DenseK</strong> k=0.5/sqrt(n)"},{pos:POS.kk,lb:"<strong>Kamada-Kawai</strong>"},{pos:POS.arf,lb:"<strong>ARF</strong> Attr-Repulsion"}];
+fd6.forEach(function(a){netCard("net-fd6",a.pos,PARTS.lou,C15,350,285,a.lb,false);});
 
 // FD5 deep compare
 netCard("net-fdc",POS.spring,PARTS.lou,C15,440,330,"<strong>FR-Default</strong> -- node size = betweenness",true);
@@ -1275,9 +1255,6 @@ document.getElementById('edge-toggle').addEventListener('click', function() {
 // ============================================================
 var pathMode = false;
 var pathNodes = [];
-var pathActive = false;        // true while a path result is displayed
-var pathHighlightNodes = null; // {nodeId: true} for nodes on the active path
-var pathHighlightEdges = null; // {"s-t": true} for edges on the active path
 
 function bfs(startId, endId) {
   var adj = {};
@@ -1297,25 +1274,17 @@ function bfs(startId, endId) {
   return path[0] === startId ? path : null;
 }
 
-// ── clearPath: removes path highlight and resets to normal/filtered state
-function clearPath(){
-  pathActive = false;
-  pathHighlightNodes = null;
-  pathHighlightEdges = null;
-  nodeG.selectAll('circle')
-    .attr('stroke','#171C28').attr('stroke-width',0.9).attr('opacity',1);
-  edgeG.selectAll('line')
-    .attr('stroke','#475569').attr('stroke-opacity',0.45).attr('stroke-width',0.9);
-  d3.select('#main-svg g').selectAll('.path-label').remove();
-  applyFilter();
-}
-
 document.getElementById('path-btn').addEventListener('click', function() {
   pathMode = !pathMode;
   pathNodes = [];
   this.classList.toggle('on', pathMode);
   this.textContent = pathMode ? 'Pick Node 1...' : 'Shortest Path';
-  if (!pathMode) clearPath();
+  if (!pathMode) {
+    // Clear path highlight
+    d3.select('#main-svg').selectAll('circle').attr('stroke','#171C28').attr('stroke-width',0.9);
+    d3.select('#main-svg').selectAll('line').attr('stroke','#475569').attr('stroke-opacity',0.45).attr('stroke-width',0.9);
+    d3.select('#main-svg').selectAll('.path-label').remove();
+  }
 });
 
 // Path click is now handled directly in the circle .on("click") handler above
